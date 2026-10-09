@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gadget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #ffffff; --text: rgb(55, 53, 47); --muted: rgba(55, 53, 47, 0.55);
+    --line: rgba(55, 53, 47, 0.14); --accent: #c8553d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #191919; --text: rgba(255, 255, 255, 0.86); --muted: rgba(255, 255, 255, 0.48); --line: rgba(255, 255, 255, 0.14); }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "EB Garamond", "Noto Serif KR", Georgia, serif; font-size: 17px; line-height: 1.6;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
+  h1 { font-weight: 500; font-size: 2rem; margin: 0 0 4px; }
+  h2 { font-weight: 500; font-size: 1.3rem; margin: 0; }
+  p.lead { color: var(--muted); margin: 0 0 40px; }
+  section { border-top: 1px solid var(--line); padding: 28px 0; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .opts { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 14px 0; font-size: 0.92rem; color: var(--muted); }
+  .opts label { display: flex; gap: 6px; align-items: center; }
+  input, select {
+    font: inherit; color: var(--text); background: transparent;
+    border: 0; border-bottom: 1px solid var(--line); padding: 0 2px; width: 6em;
+  }
+  select { width: auto; }
+  iframe { width: 100%; border: 1px dashed var(--line); border-radius: 4px; display: block; background: transparent; }
+  .url { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+  .url code {
+    flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 0.85rem;
+    padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
+  }
+  button { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gadget</h1>
+  <p class="lead">노션 <code>/embed</code> 블록에 아래 주소를 붙여 넣으세요. 배경은 투명하고 글자색은 시스템 테마를 따릅니다.</p>
+  <div id="list"></div>
+</main>
+<script type="module">
+  const common = [
+    { key: 'theme', label: '테마', type: 'select', options: ['auto', 'light', 'dark'], def: 'auto' },
+    { key: 'accent', label: '포인트 색', type: 'color', def: '#c8553d' },
+  ];
+  const modules = [
+    { path: 'clock/', title: '시계', height: 160, opts: [
+      { key: 'style', label: '형태', type: 'select', options: ['digital', 'analog'], def: 'digital' },
+      { key: 'seconds', label: '초 표시', type: 'select', options: ['', '1', '0'], def: '' },
+      { key: 'hour12', label: '12시간제', type: 'select', options: ['0', '1'], def: '0' },
+    ] },
+    { path: 'date/', title: '오늘 날짜', height: 140, opts: [
+      { key: 'lang', label: '언어', type: 'select', options: ['ko', 'en'], def: 'ko' },
+    ] },
+    { path: 'weather/', title: '오늘 날씨', height: 120, opts: [
+      { key: 'city', label: '도시', type: 'text', def: '', placeholder: '예: 서울' },
+      { key: 'name', label: '표시 이름', type: 'text', def: '', placeholder: '(선택)' },
+    ] },
+    { path: 'pomodoro/', title: '포모도로', height: 280, opts: [
+      { key: 'min', label: '기본 분', type: 'text', def: '90' },
+      { key: 'layout', label: '형태', type: 'select', options: ['auto', 'ring', 'bar'], def: 'auto' },
+      { key: 'vol', label: '음량', type: 'text', def: '0.6' },
+      { key: 'id', label: 'id', type: 'text', def: 'default' },
+    ] },
+  ];
+
+  const base = new URL('.', location.href);
+  const list = document.getElementById('list');
+
+  for (const m of modules) {
+    const opts = [...m.opts, ...common];
+    const sec = document.createElement('section');
+    sec.innerHTML = `
+      <div class="head"><h2>${m.title}</h2>
+        <label class="opts">미리보기 높이 <input type="number" value="${m.height}" data-h style="width:4em">px</label></div>
+      <div class="opts">${opts.map((o) => `<label>${o.label} ${
+        o.type === 'select'
+          ? `<select data-k="${o.key}">${o.options.map((v) => `<option value="${v}" ${v === o.def ? 'selected' : ''}>${v || '기본'}</option>`).join('')}</select>`
+          : `<input type="${o.type}" data-k="${o.key}" value="${o.def}" placeholder="${o.placeholder ?? ''}">`}</label>`).join('')}</div>
+      <iframe height="${m.height}" loading="lazy"></iframe>
+      <div class="url"><code></code><button>복사</button></div>`;
+    list.append(sec);
+
+    const frame = sec.querySelector('iframe');
+    const code = sec.querySelector('code');
+    const update = () => {
+      const q = new URLSearchParams();
+      for (const o of opts) {
+        let v = sec.querySelector(`[data-k="${o.key}"]`).value.trim();
+        if (o.key === 'accent') v = v.replace('#', '');
+        if (v !== '' && v !== String(o.def).replace('#', '')) q.set(o.key, v);
+      }
+      const url = new URL(m.path, base);
+      url.search = q;
+      code.textContent = url.href;
+      if (frame.src !== url.href) frame.src = url.href;
+    };
+    sec.addEventListener('change', update);
+    sec.querySelector('[data-h]').addEventListener('input', (e) => { frame.height = e.target.value; });
+    sec.querySelector('button').addEventListener('click', async (e) => {
+      try { await navigator.clipboard.writeText(code.textContent); e.target.textContent = '복사됨'; }
+      catch { e.target.textContent = '직접 복사해 주세요'; }
+      setTimeout(() => { e.target.textContent = '복사'; }, 1500);
+    });
+    update();
+  }
+</script>
+</body>
+</html>

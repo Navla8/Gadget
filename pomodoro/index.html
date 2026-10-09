@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pomodoro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
+<link rel="stylesheet" href="../shared/base.css">
+<style>
+  #app[data-layout="bar"] { width: 100%; }
+  .view { display: none; }
+  [data-layout="ring"] .view.ring,
+  [data-layout="bar"] .view.bar { display: flex; }
+
+  .time { cursor: default; line-height: 1; white-space: nowrap; }
+  [data-status="idle"] .time { cursor: text; }
+  [data-status="done"] .time { color: var(--accent); }
+  .time input {
+    font: inherit; color: inherit; background: transparent;
+    border: 0; border-bottom: 1px solid var(--accent); outline: none;
+    width: 3.2ch; text-align: center; padding: 0;
+    -moz-appearance: textfield;
+  }
+  .time input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .time .unit { font-size: 0.4em; color: var(--muted); margin-left: 0.15em; }
+
+  .controls { display: flex; gap: 0.9em; align-items: center; }
+  .controls button { display: grid; place-items: center; color: var(--muted); transition: color 0.15s; }
+  .controls button:hover { color: var(--accent); }
+  .controls svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .controls .fill { fill: currentColor; stroke: none; }
+
+  .hint { color: var(--accent); font-size: 0.7em; cursor: pointer; display: none; }
+  [data-needs-audio] .hint { display: block; }
+
+  /* 원형 */
+  .ring {
+    --size: min(calc(100vw - 12px), calc(100vh - 12px));
+    position: relative; width: var(--size); height: var(--size);
+    align-items: center; justify-content: center;
+  }
+  .ring svg.track { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 1.6; }
+  .ring .bg { stroke: var(--line); }
+  .ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
+  .ring .inner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.45em; font-size: calc(var(--size) * 0.075); }
+  .ring .time { font-size: 2.9em; }
+  .ring .controls { font-size: 1.1em; }
+
+  /* 막대 */
+  .bar { width: 100%; flex-direction: column; gap: min(4vh, 10px); padding: 0 3%; font-size: min(17vh, 7vw); }
+  .bar .row { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
+  .bar .time { font-size: 2em; }
+  .bar .meter { height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .bar .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 0.25s linear; }
+  .bar .side { display: flex; align-items: center; gap: 1em; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="view ring">
+    <svg class="track" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="48"/><circle class="fg" cx="50" cy="50" r="48" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
+    <div class="inner">
+      <div class="time" data-time></div>
+      <div class="controls" data-controls></div>
+      <div class="hint" data-hint>알림 소리 켜기</div>
+    </div>
+  </div>
+  <div class="view bar">
+    <div class="row">
+      <div class="time" data-time></div>
+      <div class="side">
+        <div class="hint" data-hint>알림 소리 켜기</div>
+        <div class="controls" data-controls></div>
+      </div>
+    </div>
+    <div class="meter"><div></div></div>
+  </div>
+</div>
+<script type="module">
+  import { param, numParam, onVisible, pad } from '../shared/common.js';
+
+  const KEY = `pomodoro:${param('id', 'default')}`;
+  const DEFAULT_MIN = numParam('min', 90);
+  const VOLUME = Math.min(1, Math.max(0, numParam('vol', 0.6)));
+  const layoutParam = param('layout', 'auto');      // auto | bar | ring
+
+  const app = document.getElementById('app');
+  const $$ = (sel) => document.querySelectorAll(sel);
+
+  // ── 상태 ─────────────────────────────────────────────
+  // status: idle | running | paused | done
+  // running → endAt(종료 시각) 기준으로 계산하므로 탭이 숨겨져도 시간이 어긋나지 않음
+  let state = load() ?? { status: 'idle', duration: DEFAULT_MIN * 60_000 };
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  }
+
+  function remaining() {
+    switch (state.status) {
+      case 'running': return Math.max(0, state.endAt - Date.now());
+      case 'paused': return state.remaining;
+      case 'done': return 0;
+      default: return state.duration;
+    }
+  }
+
+  function start() {
+    unlockAudio();
+    const left = state.status === 'paused' ? state.remaining : state.duration;
+    state = { ...state, status: 'running', endAt: Date.now() + left, total: state.status === 'paused' ? state.total : state.duration };
+    save();
+    scheduleChime();
+    render();
+  }
+
+  function pause() {
+    state = { ...state, status: 'paused', remaining: remaining() };
+    save();
+    cancelChime();
+    render();
+  }
+
+  function reset() {
+    state = { status: 'idle', duration: state.duration };
+    save();
+    cancelChime();
+    render();
+  }
+
+  function setDuration(min) {
+    if (!(min > 0)) return;
+    state = { status: 'idle', duration: Math.round(Math.min(min, 600) * 60_000) };
+    save();
+  }
+
+  // ── 소리: Web Audio 시계에 미리 예약 ─────────────────────
+  // setTimeout은 백그라운드에서 최대 1분까지 늦어지지만, 오디오 시계에 예약한 소리는 제시간에 남
+  let ctx = null;
+  let chime = null;            // { nodes, at }
+
+  function unlockAudio() {
+    try {
+      if (!ctx) {
+        ctx = new AudioContext();
+        ctx.onstatechange = () => { resyncChime(); render(); };
+      }
+      ctx.resume().then(() => { resyncChime(); render(); });
+    } catch {}
+  }
+
+  function cancelChime() {
+    chime?.nodes.forEach((n) => { try { n.stop(); } catch {} n.disconnect(); });
+    chime = null;
+  }
+
+  // 부드러운 종소리 세 번
+  function scheduleChime() {
+    cancelChime();
+    if (state.status !== 'running' || !ctx || ctx.state !== 'running') return;
+    const at = Math.max(ctx.currentTime, ctx.currentTime + (state.endAt - Date.now()) / 1000);
+    const master = ctx.createGain();
+    master.gain.value = VOLUME;
+    master.connect(ctx.destination);
+    const nodes = [];
+    for (let r = 0; r < 3; r++) {
+      const t0 = at + r * 1.4;
+      [[660, 0.5], [1320, 0.18], [1985, 0.08]].forEach(([freq, g]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(g, t0 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.2);
+        osc.connect(gain).connect(master);
+        osc.start(t0);
+        osc.stop(t0 + 2.3);
+        nodes.push(osc);
+      });
+    }
+    chime = { nodes, at, wall: state.endAt };
+  }
+
+  // 오디오 시계와 실제 시계가 벌어졌으면 다시 예약
+  function resyncChime() {
+    if (state.status !== 'running' || !ctx || ctx.state !== 'running') return;
+    const expected = ctx.currentTime + (state.endAt - Date.now()) / 1000;
+    if (!chime || chime.wall !== state.endAt || Math.abs(chime.at - expected) > 0.3) scheduleChime();
+  }
+
+  // ── 화면 ─────────────────────────────────────────────
+  function fmt(ms) {
+    const total = Math.ceil(ms / 1000);
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+    return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+  }
+
+  const ICON = {
+    play: '<svg viewBox="0 0 24 24"><path class="fill" d="M7 4.5v15l12.5-7.5z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24"><path class="fill" d="M6.5 4.5h3.5v15H6.5zM14 4.5h3.5v15H14z"/></svg>',
+    reset: '<svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4v4h4"/></svg>',
+  };
+
+  let editing = false;
+  let controlsHtml = '';
+
+  function render() {
+    const left = remaining();
+    app.dataset.status = state.status;
+
+    const needsAudio = state.status === 'running' && (!ctx || ctx.state !== 'running');
+    if (needsAudio) app.dataset.needsAudio = ''; else delete app.dataset.needsAudio;
+
+    if (!editing) $$('[data-time]').forEach((el) => { el.textContent = fmt(left); });
+
+    const total = state.status === 'idle' ? state.duration : state.total || state.duration;
+    const progress = state.status === 'idle' ? 0 : 1 - left / total;
+    const fg = document.querySelector('.fg');
+    fg.setAttribute('stroke-dashoffset', String(1 - progress));
+    fg.style.opacity = progress > 0 ? 1 : 0;
+    document.querySelector('.meter > div').style.width = `${progress * 100}%`;
+
+    const main = state.status === 'running'
+      ? `<button data-act="pause" title="일시정지">${ICON.pause}</button>`
+      : `<button data-act="start" title="시작">${ICON.play}</button>`;
+    const html = main + (state.status === 'idle' ? '' : `<button data-act="reset" title="처음으로">${ICON.reset}</button>`);
+    // 같은 버튼이면 다시 그리지 않음 (누르는 도중 교체되면 클릭이 사라짐)
+    if (html !== controlsHtml) {
+      controlsHtml = html;
+      $$('[data-controls]').forEach((el) => { el.innerHTML = html; });
+    }
+  }
+
+  function tick() {
+    if (state.status === 'running' && Date.now() >= state.endAt) {
+      state = { ...state, status: 'done' };
+      save();
+      chime = null;
+    }
+    render();
+  }
+
+  // 시간 클릭 → 분 단위로 직접 입력 (대기 상태에서만)
+  function editTime(el) {
+    if (state.status !== 'idle' || editing) return;
+    editing = true;
+    el.innerHTML = `<input type="number" min="1" max="600" value="${Math.round(state.duration / 60_000)}"><span class="unit">분</span>`;
+    const input = el.querySelector('input');
+    input.focus();
+    input.select();
+    const done = (commit) => {
+      if (!editing) return;
+      editing = false;
+      if (commit) setDuration(Number(input.value));
+      render();
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') done(true);
+      if (e.key === 'Escape') done(false);
+    });
+    input.addEventListener('blur', () => done(true));
+  }
+
+  app.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (btn) ({ start, pause, reset })[btn.dataset.act]();
+    else if (e.target.closest('[data-time]')) editTime(e.target.closest('[data-time]'));
+  });
+  // 새로고침 후에는 브라우저 정책상 클릭이 있어야 소리를 낼 수 있음
+  document.addEventListener('pointerdown', unlockAudio);
+
+  // 레이아웃: 세로가 넉넉하면 원형, 낮으면 막대
+  const tall = matchMedia('(min-height: 200px) and (min-width: 150px)');
+  function applyLayout() {
+    app.dataset.layout = layoutParam === 'auto' ? (tall.matches ? 'ring' : 'bar') : layoutParam;
+  }
+  tall.addEventListener('change', applyLayout);
+  applyLayout();
+
+  // 같은 타이머를 다른 탭에서 조작하면 따라가기
+  addEventListener('storage', (e) => {
+    if (e.key !== KEY) return;
+    state = load() ?? state;
+    if (state.status === 'running') scheduleChime(); else cancelChime();
+    render();
+  });
+
+  render();
+  setInterval(tick, 250);
+  setInterval(resyncChime, 60_000);
+  onVisible(() => { resyncChime(); tick(); });
+</script>
+</body>
+</html>

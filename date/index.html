@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
+<link rel="stylesheet" href="../shared/base.css">
+<style>
+  .date { text-align: center; line-height: 1.1; }
+  .main { font-size: min(15vw, 46vh); }
+  .sub { font-size: min(5.2vw, 16vh); margin-top: 0.35em; color: var(--muted); letter-spacing: 0.04em; }
+  .sub .dot { margin: 0 0.4em; }
+</style>
+</head>
+<body>
+<div class="date">
+  <div class="main" id="main"></div>
+  <div class="sub"><span id="year"></span><span class="dot">·</span><span class="accent" id="weekday"></span></div>
+</div>
+<script type="module">
+  import { param, onVisible } from '../shared/common.js';
+
+  const lang = param('lang', 'ko');             // ko | en
+  const tz = param('tz', undefined);
+  const locale = lang === 'en' ? 'en-US' : 'ko-KR';
+
+  const fmt = (opts) => new Intl.DateTimeFormat(locale, { timeZone: tz, ...opts });
+  const mainFmt = fmt({ month: 'long', day: 'numeric' });
+  const yearFmt = fmt({ year: 'numeric' });
+  const weekdayFmt = fmt({ weekday: 'long' });
+
+  let last = '';
+  function render() {
+    const d = new Date();
+    const key = mainFmt.format(d) + yearFmt.format(d);
+    if (key === last) return;
+    last = key;
+    document.getElementById('main').textContent = mainFmt.format(d);
+    document.getElementById('year').textContent = yearFmt.format(d);
+    document.getElementById('weekday').textContent = weekdayFmt.format(d);
+  }
+
+  render();
+  setInterval(render, 30_000);   // 자정이 지나면 30초 안에 바뀜
+  onVisible(render);
+</script>
+</body>
+</html>

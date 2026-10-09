@@ -1,0 +1,52 @@
+/* 공통 토큰 — 노션의 기본 글자색에 맞추고 배경은 항상 투명 */
+:root {
+  --text: rgb(55, 53, 47);
+  --muted: rgba(55, 53, 47, 0.55);
+  --line: rgba(55, 53, 47, 0.14);
+  --accent: #c8553d;
+  --serif: "EB Garamond", "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --text: rgba(255, 255, 255, 0.86);
+    --muted: rgba(255, 255, 255, 0.48);
+    --line: rgba(255, 255, 255, 0.14);
+  }
+}
+:root[data-theme="dark"] {
+  --text: rgba(255, 255, 255, 0.86);
+  --muted: rgba(255, 255, 255, 0.48);
+  --line: rgba(255, 255, 255, 0.14);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--serif);
+  font-variant-numeric: lining-nums tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.muted { color: var(--muted); }
+.accent { color: var(--accent); }

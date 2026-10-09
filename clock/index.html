@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
+<link rel="stylesheet" href="../shared/base.css">
+<style>
+  .digital {
+    display: flex;
+    align-items: baseline;
+    gap: 0.08em;
+    font-size: min(30vw, 72vh);
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+  .digital .colon { color: var(--accent); margin: 0 0.02em; transform: translateY(-0.06em); }
+  .digital .small { font-size: 0.32em; color: var(--muted); margin-left: 0.2em; }
+  .digital .ampm { margin: 0 0.25em 0 0; }
+
+  .analog { width: min(100vw, 100vh); height: min(100vw, 100vh); padding: 6px; }
+  .analog svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .tick { stroke: var(--muted); stroke-width: 1.2; stroke-linecap: round; }
+  .tick.major { stroke: var(--text); stroke-width: 2; }
+  .hand { stroke: var(--text); stroke-linecap: round; }
+  .hand.second { stroke: var(--accent); stroke-width: 1.2; }
+  .pin { fill: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+  import { param, onVisible, pad } from '../shared/common.js';
+
+  const style = param('style', 'digital');        // digital | analog
+  const showSeconds = param('seconds', style === 'analog' ? '1' : '0') === '1';
+  const hour12 = param('hour12', '0') === '1';
+  const tz = param('tz', undefined);               // 예: Asia/Seoul
+
+  const app = document.getElementById('app');
+
+  // tz 옵션을 반영한 현재 시·분·초
+  const partsFmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  });
+  function now() {
+    const p = Object.fromEntries(partsFmt.formatToParts(new Date()).map((x) => [x.type, x.value]));
+    return { h: Number(p.hour), m: Number(p.minute), s: Number(p.second) };
+  }
+
+  function renderDigital() {
+    const { h, m, s } = now();
+    const hh = hour12 ? String(h % 12 || 12) : pad(h);
+    const prefix = hour12 ? `<span class="small ampm">${h < 12 ? '오전' : '오후'}</span>` : '';
+    const sec = showSeconds ? `<span class="small">${pad(s)}</span>` : '';
+    app.className = 'digital';
+    app.innerHTML = `${prefix}<span>${hh}</span><span class="colon">:</span><span>${pad(m)}</span>${sec}`;
+  }
+
+  function buildAnalog() {
+    app.className = 'analog';
+    const ticks = Array.from({ length: 12 }, (_, i) => {
+      const major = i % 3 === 0;
+      return `<line class="tick${major ? ' major' : ''}" x1="100" y1="${major ? 8 : 10}" x2="100" y2="${major ? 20 : 16}" transform="rotate(${i * 30} 100 100)"/>`;
+    }).join('');
+    app.innerHTML = `
+      <svg viewBox="0 0 200 200" aria-label="analog clock">
+        ${ticks}
+        <line id="h" class="hand" x1="100" y1="112" x2="100" y2="52" stroke-width="4"/>
+        <line id="m" class="hand" x1="100" y1="114" x2="100" y2="28" stroke-width="2.4"/>
+        <line id="s" class="hand second" x1="100" y1="120" x2="100" y2="22" ${showSeconds ? '' : 'style="display:none"'}/>
+        <circle class="pin" cx="100" cy="100" r="3"/>
+      </svg>`;
+  }
+
+  function renderAnalog() {
+    const { h, m, s } = now();
+    const rot = (id, deg) => document.getElementById(id).setAttribute('transform', `rotate(${deg} 100 100)`);
+    rot('h', (h % 12) * 30 + m * 0.5);
+    rot('m', m * 6 + s * 0.1);
+    rot('s', s * 6);
+  }
+
+  const render = style === 'analog' ? renderAnalog : renderDigital;
+  if (style === 'analog') buildAnalog();
+
+  // 다음 정초에 맞춰 갱신 (백그라운드에서 늦어져도 보이는 순간 바로 다시 그림)
+  function loop() {
+    render();
+    setTimeout(loop, 1000 - (Date.now() % 1000) + 5);
+  }
+  loop();
+  onVisible(render);
+</script>
+</body>
+</html>
