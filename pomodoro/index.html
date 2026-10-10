@@ -50,9 +50,9 @@
   .ring .controls { font-size: 1.1em; }
 
   /* 막대 */
-  .bar { width: 100%; flex-direction: column; gap: min(4vh, 10px); padding: 0 2px; font-size: min(17vh, 7vw); }
+  .bar { width: 100%; flex-direction: column; gap: 0.3em; padding: 0 2px; }
   .bar .row { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
-  .bar .time { font-size: 2em; }
+  .bar .time { font-size: 2em; line-height: 0.8; }  /* 숫자 위아래 빈 줄 높이를 덜어냄 */
   .bar .meter { height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; }
   .bar .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 0.25s linear; }
   .bar .side { display: flex; align-items: center; gap: 1em; }
@@ -215,7 +215,9 @@
     app.dataset.status = state.status;
 
     const needsAudio = state.status === 'running' && (!ctx || ctx.state !== 'running');
+    const hadHint = 'needsAudio' in app.dataset;
     if (needsAudio) app.dataset.needsAudio = ''; else delete app.dataset.needsAudio;
+    if (hadHint !== needsAudio) queueMicrotask(fitBar);
 
     if (!editing) $$('[data-time]').forEach((el) => { el.textContent = fmt(left); });
 
@@ -234,6 +236,7 @@
     // 같은 버튼이면 다시 그리지 않음 (누르는 도중 교체되면 클릭이 사라짐)
     if (html !== controlsHtml) {
       controlsHtml = html;
+      queueMicrotask(fitBar);
       $$('[data-controls]').forEach((el) => { el.innerHTML = html; });
     }
   }
@@ -278,8 +281,22 @@
 
   // 레이아웃: 세로가 넉넉하면 원형, 낮으면 막대
   const tall = matchMedia('(min-height: 200px) and (min-width: 150px)');
+  // 막대: 세로 높이를 꽉 채우되, 시간과 버튼이 가로에 들어가는 크기까지만
+  const bar = document.querySelector('.view.bar');
+  function fitBar() {
+    if (app.dataset.layout !== 'bar') return;
+    bar.style.fontSize = '100px';
+    const row = bar.querySelector('.row');
+    const needW = [...row.children].reduce((w, c) => w + c.offsetWidth, 0) + 100;   // + 사이 간격 1em
+    const scale = Math.min((innerHeight - 4) / bar.offsetHeight, (innerWidth - 4) / needW);
+    bar.style.fontSize = `${100 * scale}px`;
+  }
+  addEventListener('resize', fitBar);
+  document.fonts?.ready.then(fitBar);
+
   function applyLayout() {
     app.dataset.layout = layoutParam === 'auto' ? (tall.matches ? 'ring' : 'bar') : layoutParam;
+    fitBar();
   }
   tall.addEventListener('change', applyLayout);
   applyLayout();
