@@ -20,10 +20,6 @@
   @keyframes blink { 50% { opacity: 0.45; } }
   .digital .small { font-size: 0.32em; color: var(--muted); margin-left: 0.2em; }
   .digital .ampm { margin: 0 0.25em 0 0; }
-  /* 초·오전/오후와 같은 폭의 빈 자리를 반대편에 둬서 시:분이 정확히 가운데 오게 함 */
-  .digital .ghost { visibility: hidden; }
-  .digital .ss.ghost { margin: 0 0.2em 0 0; }
-  .digital .ampm.ghost { margin: 0 0 0 0.25em; }
 
   /* 디지털과 함께일 때: 한 줄 / 날짜만 있을 때: 두 줄 */
   .date { font-size: 0.22em; color: var(--muted); letter-spacing: 0.03em; }
@@ -64,7 +60,7 @@
   };
   const pos = param('pos', 'left');
   const dateFirst = on('datefirst', '0');
-  const gap = numParam('gap', 0.3);
+  const gap = numParam('gap', 0.15);
   const showHand = on('hand', '1');
   const showSeconds = on('seconds', '0');
   const hour12 = on('hour12', '0');
@@ -92,7 +88,7 @@
 
   const stack = el('div', 'stack');
   const digital = show.digital && el('div', `digital${blink ? ' blink' : ''}`,
-    `<span class="small ss ghost" ${showSeconds ? '' : 'hidden'}>00</span><span class="small ampm" ${hour12 ? '' : 'hidden'}></span><span class="hh"></span><span class="colon">:</span><span class="mm"></span><span class="small ss" ${showSeconds ? '' : 'hidden'}></span><span class="small ampm ghost" ${hour12 ? '' : 'hidden'}></span>`);
+    `<span class="small ampm" ${hour12 ? '' : 'hidden'}></span><span class="hh"></span><span class="colon">:</span><span class="mm"></span><span class="small ss" ${showSeconds ? '' : 'hidden'}></span>`);
   const date = show.date && el('div', `date${show.digital ? '' : ' solo'}`,
     `<span class="md"></span> <span class="sub"><span class="year"></span><span class="year"> · </span><span class="wd accent"></span></span>`);
   for (const part of dateFirst ? [date, digital] : [digital, date]) if (part) stack.append(part);
@@ -137,10 +133,10 @@
   function render() {
     const { h, m, s } = now();
     if (digital) {
-      digital.querySelectorAll('.ampm').forEach((n) => set(n, h < 12 ? (lang === 'en' ? 'AM' : '오전') : (lang === 'en' ? 'PM' : '오후')));
+      set(digital.querySelector('.ampm'), h < 12 ? (lang === 'en' ? 'AM' : '오전') : (lang === 'en' ? 'PM' : '오후'));
       set(digital.querySelector('.hh'), hour12 ? String(h % 12 || 12) : pad(h));
       set(digital.querySelector('.mm'), pad(m));
-      set(digital.querySelector('.ss:not(.ghost)'), pad(s));
+      set(digital.querySelector('.ss'), pad(s));
     }
     if (analog) {
       const rot = (sel, deg) => analog.querySelector(sel)?.setAttribute('transform', `rotate(${deg} 100 100)`);
@@ -164,6 +160,7 @@
   // 아날로그 크기를 글자 덩어리에 맞춘 뒤 전체를 임베드에 꽉 채움
   function layout() {
     app.style.fontSize = '100px';
+    centerDate();
     if (analog) {
       stack.style.fontSize = '';
       const sw = stack.offsetWidth / 100, sh = stack.offsetHeight / 100;
@@ -181,6 +178,19 @@
       analog.style.width = analog.style.height = `${d}em`;
     }
     fit(app);
+  }
+
+  // 날짜를 초·오전/오후를 뺀 시:분 아래 가운데로 옮김 (빈 자리를 두지 않아 여백이 늘지 않음)
+  function centerDate() {
+    if (!date || !digital) return;
+    const width = (sel) => {
+      const n = digital.querySelector(sel);
+      if (n.hidden) return 0;
+      const st = getComputedStyle(n);
+      return n.getBoundingClientRect().width + parseFloat(st.marginLeft) + parseFloat(st.marginRight);
+    };
+    const shift = (width('.ampm') - width('.ss')) / 2;
+    date.style.transform = `translateX(${shift / parseFloat(getComputedStyle(date).fontSize)}em)`;
   }
 
   render();
