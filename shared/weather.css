@@ -2,7 +2,7 @@
 .wx { display: inline-flex; align-items: center; line-height: 1.15; white-space: nowrap; }
 .wx .emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; line-height: 1; }
 .wx .today { display: flex; align-items: center; gap: 0.3em; }
-.wx .today .emoji { font-size: 1.9em; }
+.wx .today .emoji { font-size: 1.9em; transform: translateY(0.1em); }  /* 이모지 중심을 온도 줄에 맞춤 */
 .wx .label { font-size: 0.42em; color: var(--muted); letter-spacing: 0.03em; }
 .wx .pct { color: var(--accent); font-size: 0.85em; margin-left: 0.15em; }
 .wx .sep { color: var(--muted); margin: 0 0.12em; }
@@ -16,5 +16,6 @@
 /* 세로 배치 */
 .wx.column { flex-direction: column; text-align: center; }
 .wx.column .today { flex-direction: column; gap: 0.15em; }
+.wx.column .today .emoji { transform: none; }
 .wx.column .tomorrow { margin: 0.4em 0 0; padding: 0.35em 0 0; border-left: 0; border-top: 1px solid var(--line); }
 .wx.column .tomorrow .row { justify-content: center; }
