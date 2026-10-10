@@ -1,4 +1,9 @@
 /* 공통 토큰 — 노션의 기본 글자색에 맞추고 배경은 항상 투명 */
+/* color-scheme이 바깥 페이지(노션)와 다르면 브라우저가 iframe에 불투명 배경을 칠하므로,
+   라이트·다크를 모두 지원한다고 선언해 노션 쪽 설정과 항상 맞춤 */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 :root {
   --text: rgb(55, 53, 47);
   --muted: rgba(55, 53, 47, 0.55);
