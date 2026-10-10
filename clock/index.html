@@ -12,25 +12,25 @@
   #app { display: inline-flex; align-items: center; line-height: 1; white-space: nowrap; }
   #app.column { flex-direction: column; }
 
-  .stack { display: flex; flex-direction: column; align-items: center; gap: 0.12em; }
-  .stack.start { align-items: flex-start; }
-  .stack.end { align-items: flex-end; }
+  .stack { display: flex; flex-direction: column; align-items: center; gap: 0.04em; }
 
-  .digital { display: flex; align-items: baseline; letter-spacing: 0.01em; }
+  .digital { display: flex; align-items: baseline; letter-spacing: 0.01em; line-height: 0.8; }  /* 숫자는 아래로 내려가는 획이 없어서 줄 높이를 줄임 */
   .colon { color: var(--accent); margin: 0 0.04em; transform: translateY(-0.06em); }
   .blink .colon { animation: blink 1s steps(1) infinite; }
-  @keyframes blink { 50% { opacity: 0.15; } }
+  @keyframes blink { 50% { opacity: 0.45; } }
   .digital .small { font-size: 0.32em; color: var(--muted); margin-left: 0.2em; }
   .digital .ampm { margin: 0 0.25em 0 0; }
+  /* 초·오전/오후와 같은 폭의 빈 자리를 반대편에 둬서 시:분이 정확히 가운데 오게 함 */
+  .digital .ghost { visibility: hidden; }
+  .digital .ss.ghost { margin: 0 0.2em 0 0; }
+  .digital .ampm.ghost { margin: 0 0 0 0.25em; }
 
   /* 디지털과 함께일 때: 한 줄 / 날짜만 있을 때: 두 줄 */
-  .date { font-size: 0.27em; color: var(--muted); letter-spacing: 0.03em; }
+  .date { font-size: 0.22em; color: var(--muted); letter-spacing: 0.03em; }
   .date .md { color: var(--text); }
   .date.solo { font-size: 1em; color: var(--text); text-align: center; letter-spacing: 0; }
   .date.solo .sub { display: block; font-size: 0.34em; color: var(--muted); margin-top: 0.3em; letter-spacing: 0.04em; }
   .date:not(.solo) .year { display: none; }
-  .stack.start .date.solo { text-align: left; }
-  .stack.end .date.solo { text-align: right; }
 
   .analog { position: relative; flex: none; }
   .analog svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -90,9 +90,9 @@
   const app = document.getElementById('app');
   const el = (tag, cls, html = '') => Object.assign(document.createElement(tag), { className: cls, innerHTML: html });
 
-  const stack = el('div', `stack ${show.analog ? { left: 'start', right: 'end' }[pos] ?? '' : ''}`);
+  const stack = el('div', 'stack');
   const digital = show.digital && el('div', `digital${blink ? ' blink' : ''}`,
-    `<span class="small ampm" ${hour12 ? '' : 'hidden'}></span><span class="hh"></span><span class="colon">:</span><span class="mm"></span><span class="small ss" ${showSeconds ? '' : 'hidden'}></span>`);
+    `<span class="small ss ghost" ${showSeconds ? '' : 'hidden'}>00</span><span class="small ampm" ${hour12 ? '' : 'hidden'}></span><span class="hh"></span><span class="colon">:</span><span class="mm"></span><span class="small ss" ${showSeconds ? '' : 'hidden'}></span><span class="small ampm ghost" ${hour12 ? '' : 'hidden'}></span>`);
   const date = show.date && el('div', `date${show.digital ? '' : ' solo'}`,
     `<span class="md"></span> <span class="sub"><span class="year"></span><span class="year"> · </span><span class="wd accent"></span></span>`);
   for (const part of dateFirst ? [date, digital] : [digital, date]) if (part) stack.append(part);
@@ -137,10 +137,10 @@
   function render() {
     const { h, m, s } = now();
     if (digital) {
-      set(digital.querySelector('.ampm'), h < 12 ? (lang === 'en' ? 'AM' : '오전') : (lang === 'en' ? 'PM' : '오후'));
+      digital.querySelectorAll('.ampm').forEach((n) => set(n, h < 12 ? (lang === 'en' ? 'AM' : '오전') : (lang === 'en' ? 'PM' : '오후')));
       set(digital.querySelector('.hh'), hour12 ? String(h % 12 || 12) : pad(h));
       set(digital.querySelector('.mm'), pad(m));
-      set(digital.querySelector('.ss'), pad(s));
+      set(digital.querySelector('.ss:not(.ghost)'), pad(s));
     }
     if (analog) {
       const rot = (sel, deg) => analog.querySelector(sel)?.setAttribute('transform', `rotate(${deg} 100 100)`);
