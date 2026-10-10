@@ -8,29 +8,31 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
 <link rel="stylesheet" href="../shared/base.css">
+<link rel="stylesheet" href="../shared/weather.css">
 <style>
-  #app { display: inline-flex; align-items: center; line-height: 1; white-space: nowrap; }
-  #app.column { flex-direction: column; }
+  #app { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; white-space: nowrap; }
+  .mid { display: flex; align-items: center; }
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 0.1em; }
+  /* 디지털과 날짜가 붙어 있으면 더 가깝게 */
+  .item.digital + .item.date, .item.date + .item.digital { margin-top: -0.06em; }
 
-  .stack { display: flex; flex-direction: column; align-items: center; gap: 0.04em; }
-
-  .digital { display: flex; align-items: baseline; letter-spacing: 0.01em; line-height: 0.8; }  /* 숫자는 아래로 내려가는 획이 없어서 줄 높이를 줄임 */
+  .digital-face { display: flex; align-items: baseline; letter-spacing: 0.01em; line-height: 0.8; }
   .colon { color: var(--accent); margin: 0 0.04em; transform: translateY(-0.06em); }
-  .blink .colon { animation: blink 1s steps(1) infinite; }
+  /* 1초 켜짐 · 1초 흐림 */
+  .blink .colon { animation: blink 2s steps(1) infinite; }
   @keyframes blink { 50% { opacity: 0.45; } }
-  .digital .small { font-size: 0.32em; color: var(--muted); margin-left: 0.2em; }
-  .digital .ampm { margin: 0 0.25em 0 0; }
+  .digital-face .small { font-size: 0.32em; color: var(--muted); margin-left: 0.2em; }
+  .digital-face .ampm { margin: 0 0.25em 0 0; }
 
-  /* 디지털과 함께일 때: 한 줄 / 날짜만 있을 때: 두 줄 */
-  .date { font-size: 0.22em; color: var(--muted); letter-spacing: 0.03em; }
-  .date .md { color: var(--text); }
-  .date.solo { font-size: 1em; color: var(--text); text-align: center; letter-spacing: 0; }
-  .date.solo .sub { display: block; font-size: 0.34em; color: var(--muted); margin-top: 0.3em; letter-spacing: 0.04em; }
-  .date:not(.solo) .year { display: none; }
+  /* 디지털과 같은 칸이면 한 줄, 아니면 연도까지 두 줄 */
+  .date-face { font-size: 0.22em; color: var(--muted); letter-spacing: 0.03em; }
+  .date-face .md { color: var(--text); }
+  .date-face.solo { font-size: 0.5em; color: var(--text); text-align: center; letter-spacing: 0; }
+  .date-face.solo .sub { display: block; font-size: 0.34em; color: var(--muted); margin-top: 0.3em; letter-spacing: 0.04em; }
+  .date-face:not(.solo) .year { display: none; }
 
-  .analog { position: relative; flex: none; }
-  .analog svg { width: 100%; height: 100%; display: block; overflow: visible; }
-  .analog .stack { position: absolute; left: 50%; top: 66%; transform: translate(-50%, -50%); }
+  .analog-face { width: 1.6em; height: 1.6em; }
+  .analog-face svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .tick { stroke: var(--muted); stroke-width: 1.2; stroke-linecap: round; }
   .tick.major { stroke: var(--text); stroke-width: 2; }
   .hand { stroke: var(--text); stroke-linecap: round; }
@@ -45,24 +47,43 @@
   import { fit, autoFit } from '../shared/fit.js';
 
   // ── 옵션 ─────────────────────────────────────────────
-  //   analog / digital / date = 0|1   표시할 요소
-  //   pos = left|right|top|bottom|inside   글자(디지털·날짜) 기준 아날로그 위치
-  //   datefirst=1   날짜를 디지털 위에
-  //   gap=0.15      아날로그와 글자 사이 간격 (em)
-  //   asize=1       아날로그 크기 배율 (글자 대비)
-  //   hand=0        아날로그 초침 숨김 / seconds=1 디지털 초 표시
-  //   hour12=1, blink=0, lang=en, tz=Asia/Seoul
+  // 배치: top / left / center / right / bottom = 쉼표로 나열한 요소 (한 칸에 여러 개면 위아래로 쌓임)
+  //       요소: analog, digital, date, weather      예) ?left=analog&center=digital,date
+  // 크기: asize, dsize, datesize, wsize (기본 1)   간격: gap=0.15 (em)
+  // 기타: hand=0 (초침 숨김), seconds=1, hour12=1, blink=0, lang=en, tz=Asia/Seoul
+  //       날씨는 city / name / tomorrow (날씨 위젯과 같음)
+  const SLOTS = ['top', 'left', 'center', 'right', 'bottom'];
+  const ITEMS = ['analog', 'digital', 'date', 'weather'];
   const on = (k, d) => param(k, d) === '1';
-  const legacy = param('style', '');                     // 이전 주소(?style=analog) 호환
-  const show = {
-    analog: on('analog', legacy === 'analog' ? '1' : '0'),
-    digital: on('digital', legacy === 'analog' ? '0' : '1'),
-    date: on('date', '0'),
-  };
-  const pos = param('pos', 'left');
-  const dateFirst = on('datefirst', '0');
+
+  function readSlots() {
+    const slots = Object.fromEntries(SLOTS.map((s) => [s, []]));
+    const used = new Set();
+    let any = false;
+    for (const s of SLOTS) {
+      for (const it of param(s, '').split(',').map((x) => x.trim())) {
+        if (ITEMS.includes(it) && !used.has(it)) { slots[s].push(it); used.add(it); any = true; }
+      }
+    }
+    if (any) return slots;
+    // 이전 주소 호환: analog/digital/date + pos(+datefirst)
+    const legacy = param('style', '');
+    const showAnalog = on('analog', legacy === 'analog' ? '1' : '0');
+    const text = [on('digital', legacy === 'analog' ? '0' : '1') && 'digital', on('date', '0') && 'date'].filter(Boolean);
+    if (on('datefirst', '0')) text.reverse();
+    slots.center = text;
+    if (showAnalog) {
+      const pos = param('pos', 'left');
+      if (text.length === 0) slots.center = ['analog'];
+      else slots[SLOTS.includes(pos) && pos !== 'center' ? pos : 'left'].push('analog');
+    }
+    return slots;
+  }
+
+  const slots = readSlots();
+  const where = (it) => SLOTS.find((s) => slots[s].includes(it));
+  const size = (k) => Math.min(4, Math.max(0.2, numParam(k, 1)));
   const gap = numParam('gap', 0.15);
-  const asize = Math.min(3, Math.max(0.3, numParam('asize', 1)));
   const showHand = on('hand', '1');
   const showSeconds = on('seconds', '0');
   const hour12 = on('hour12', '0');
@@ -84,49 +105,58 @@
   const yFmt = dfmt({ year: 'numeric' });
   const wdFmt = dfmt({ weekday: 'long' });
 
-  // ── 구조 만들기 ───────────────────────────────────────
+  // ── 요소 만들기 ───────────────────────────────────────
   const app = document.getElementById('app');
   const el = (tag, cls, html = '') => Object.assign(document.createElement(tag), { className: cls, innerHTML: html });
+  const faces = {};
 
-  const stack = el('div', 'stack');
-  const digital = show.digital && el('div', `digital${blink ? ' blink' : ''}`,
-    `<span class="small ampm" ${hour12 ? '' : 'hidden'}></span><span class="hh"></span><span class="colon">:</span><span class="mm"></span><span class="small ss" ${showSeconds ? '' : 'hidden'}></span>`);
-  const date = show.date && el('div', `date${show.digital ? '' : ' solo'}`,
-    `<span class="md"></span> <span class="sub"><span class="year"></span><span class="year"> · </span><span class="wd accent"></span></span>`);
-  for (const part of dateFirst ? [date, digital] : [digital, date]) if (part) stack.append(part);
-  const hasText = show.digital || show.date;
+  function makeItem(kind) {
+    const item = el('div', `item ${kind}`);
+    const k = { analog: 'asize', digital: 'dsize', date: 'datesize', weather: 'wsize' }[kind];
+    // 날씨는 기본 크기가 0.5em이라 배율을 곱해서 적용
+    item.style.fontSize = `${(kind === 'weather' ? 0.5 : 1) * size(k)}em`;
 
-  let analog = null;
-  if (show.analog) {
-    analog = el('div', 'analog');
-    const ticks = Array.from({ length: 12 }, (_, i) => {
-      const major = i % 3 === 0;
-      return `<line class="tick${major ? ' major' : ''}" x1="100" y1="${major ? 8 : 10}" x2="100" y2="${major ? 20 : 16}" transform="rotate(${i * 30} 100 100)"/>`;
-    }).join('');
-    analog.innerHTML = `
-      <svg viewBox="0 0 200 200" aria-label="analog clock">
-        ${ticks}
-        <line data-h class="hand" x1="100" y1="112" x2="100" y2="52" stroke-width="4"/>
-        <line data-m class="hand" x1="100" y1="114" x2="100" y2="28" stroke-width="2.4"/>
-        ${showHand ? '<line data-s class="hand second" x1="100" y1="120" x2="100" y2="22"/>' : ''}
-        <circle class="pin" cx="100" cy="100" r="3"/>
-      </svg>`;
+    if (kind === 'digital') {
+      faces.digital = el('div', `digital-face${blink ? ' blink' : ''}`,
+        `<span class="small ampm" ${hour12 ? '' : 'hidden'}></span><span class="hh"></span><span class="colon">:</span><span class="mm"></span><span class="small ss" ${showSeconds ? '' : 'hidden'}></span>`);
+      // 깜박임을 실제 초(짝수 초 켜짐)에 맞춤
+      faces.digital.querySelector('.colon').style.animationDelay = `-${Date.now() % 2000}ms`;
+      item.append(faces.digital);
+    } else if (kind === 'date') {
+      const solo = where('digital') !== where('date');
+      faces.date = el('div', `date-face${solo ? ' solo' : ''}`,
+        `<span class="md"></span> <span class="sub"><span class="year"></span><span class="year"> · </span><span class="wd accent"></span></span>`);
+      item.append(faces.date);
+    } else if (kind === 'analog') {
+      const ticks = Array.from({ length: 12 }, (_, i) => {
+        const major = i % 3 === 0;
+        return `<line class="tick${major ? ' major' : ''}" x1="100" y1="${major ? 8 : 10}" x2="100" y2="${major ? 20 : 16}" transform="rotate(${i * 30} 100 100)"/>`;
+      }).join('');
+      faces.analog = el('div', 'analog-face', `
+        <svg viewBox="0 0 200 200" aria-label="analog clock">
+          ${ticks}
+          <line data-h class="hand" x1="100" y1="112" x2="100" y2="52" stroke-width="4"/>
+          <line data-m class="hand" x1="100" y1="114" x2="100" y2="28" stroke-width="2.4"/>
+          ${showHand ? '<line data-s class="hand second" x1="100" y1="120" x2="100" y2="22"/>' : ''}
+          <circle class="pin" cx="100" cy="100" r="3"/>
+        </svg>`);
+      item.append(faces.analog);
+    } else if (kind === 'weather') {
+      import('../shared/weather.js').then(({ createWeather }) => { item.append(createWeather(() => layout())); layout(); });
+    }
+    return item;
   }
 
-  // 배치
-  if (analog && hasText && pos === 'inside') {
-    analog.append(stack);
-    app.append(analog);
-  } else {
-    const parts = [analog, hasText && stack].filter(Boolean);
-    if (pos === 'right' || pos === 'bottom') parts.reverse();
-    app.append(...parts);
-    if (pos === 'top' || pos === 'bottom') app.classList.add('column');
-    app.style.gap = `${gap}em`;
-  }
-
-  // 콜론 깜박임을 실제 초에 맞춤
-  if (digital) digital.querySelector('.colon').style.animationDelay = `-${Date.now() % 1000}ms`;
+  const slotEl = (name) => {
+    if (!slots[name].length) return null;
+    const box = el('div', `slot ${name}`);
+    box.append(...slots[name].map(makeItem));
+    return box;
+  };
+  const mid = el('div', 'mid');
+  mid.append(...['left', 'center', 'right'].map(slotEl).filter(Boolean));
+  app.append(...[slotEl('top'), mid.children.length ? mid : null, slotEl('bottom')].filter(Boolean));
+  app.style.gap = mid.style.gap = `${gap}em`;
 
   // ── 그리기 ───────────────────────────────────────────
   const set = (node, text) => { if (node && node.textContent !== text) node.textContent = text; };
@@ -134,65 +164,49 @@
 
   function render() {
     const { h, m, s } = now();
-    if (digital) {
-      set(digital.querySelector('.ampm'), h < 12 ? (lang === 'en' ? 'AM' : '오전') : (lang === 'en' ? 'PM' : '오후'));
-      set(digital.querySelector('.hh'), hour12 ? String(h % 12 || 12) : pad(h));
-      set(digital.querySelector('.mm'), pad(m));
-      set(digital.querySelector('.ss'), pad(s));
+    const d = faces.digital;
+    if (d) {
+      set(d.querySelector('.ampm'), h < 12 ? (lang === 'en' ? 'AM' : '오전') : (lang === 'en' ? 'PM' : '오후'));
+      set(d.querySelector('.hh'), hour12 ? String(h % 12 || 12) : pad(h));
+      set(d.querySelector('.mm'), pad(m));
+      set(d.querySelector('.ss'), pad(s));
     }
-    if (analog) {
-      const rot = (sel, deg) => analog.querySelector(sel)?.setAttribute('transform', `rotate(${deg} 100 100)`);
+    if (faces.analog) {
+      const rot = (sel, deg) => faces.analog.querySelector(sel)?.setAttribute('transform', `rotate(${deg} 100 100)`);
       rot('[data-h]', (h % 12) * 30 + m * 0.5);
       rot('[data-m]', m * 6 + s * 0.1);
       rot('[data-s]', s * 6);
     }
-    if (date) {
-      const d = new Date();
-      const day = mdFmt.format(d) + yFmt.format(d);
-      if (day !== lastDay) {
-        lastDay = day;
-        set(date.querySelector('.md'), mdFmt.format(d));
-        set(date.querySelector('.year'), yFmt.format(d));
-        set(date.querySelector('.wd'), wdFmt.format(d));
+    if (faces.date) {
+      const day = new Date();
+      const key = mdFmt.format(day) + yFmt.format(day);
+      if (key !== lastDay) {
+        lastDay = key;
+        set(faces.date.querySelector('.md'), mdFmt.format(day));
+        set(faces.date.querySelector('.year'), yFmt.format(day));
+        set(faces.date.querySelector('.wd'), wdFmt.format(day));
         layout();
       }
     }
   }
 
-  // 아날로그 크기를 글자 덩어리에 맞춘 뒤 전체를 임베드에 꽉 채움
-  function layout() {
-    app.style.fontSize = '100px';
-    centerDate();
-    if (analog) {
-      stack.style.fontSize = '';
-      const sw = stack.offsetWidth / 100, sh = stack.offsetHeight / 100;
-      let d = 1;
-      if (hasText) {
-        if (pos === 'inside') {
-          d = 4;
-          stack.style.fontSize = `${Math.min((d * 0.46) / sw, (d * 0.2) / sh) / asize}em`;
-        } else if (pos === 'top' || pos === 'bottom') {
-          d = Math.max(sw * 0.8, sh * 2) * asize;
-        } else {
-          d = Math.max(sh, 1) * 1.4 * asize;
-        }
-      }
-      analog.style.width = analog.style.height = `${d}em`;
-    }
-    fit(app);
-  }
-
-  // 날짜를 초·오전/오후를 뺀 시:분 아래 가운데로 옮김 (빈 자리를 두지 않아 여백이 늘지 않음)
+  // 같은 칸의 날짜를 초·오전/오후를 뺀 시:분 아래 가운데로 옮김
   function centerDate() {
-    if (!date || !digital) return;
+    if (!faces.date || !faces.digital || where('date') !== where('digital')) return;
     const width = (sel) => {
-      const n = digital.querySelector(sel);
+      const n = faces.digital.querySelector(sel);
       if (n.hidden) return 0;
       const st = getComputedStyle(n);
       return n.getBoundingClientRect().width + parseFloat(st.marginLeft) + parseFloat(st.marginRight);
     };
     const shift = (width('.ampm') - width('.ss')) / 2;
-    date.style.transform = `translateX(${shift / parseFloat(getComputedStyle(date).fontSize)}em)`;
+    faces.date.style.transform = `translateX(${shift / parseFloat(getComputedStyle(faces.date).fontSize)}em)`;
+  }
+
+  function layout() {
+    app.style.fontSize = '100px';
+    centerDate();
+    fit(app);
   }
 
   render();

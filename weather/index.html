@@ -8,181 +8,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
 <link rel="stylesheet" href="../shared/base.css">
-<style>
-  #app { display: inline-flex; align-items: center; line-height: 1.15; white-space: nowrap; }
-  .emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; line-height: 1; }
-  .today { display: flex; align-items: center; gap: 0.3em; }
-  .today .emoji { font-size: 1.9em; }
-  .label { font-size: 0.42em; color: var(--muted); letter-spacing: 0.03em; }
-  .pct { color: var(--accent); font-size: 0.85em; margin-left: 0.15em; }
-  .sep { color: var(--muted); margin: 0 0.12em; }
-  .tomorrow { margin-left: 0.5em; padding-left: 0.5em; border-left: 1px solid var(--line); }
-  .tomorrow .label { font-size: 0.32em; }
-  .tomorrow .row { display: flex; align-items: center; gap: 0.2em; font-size: 0.5em; margin-top: 0.12em; }
-  .tomorrow .emoji { font-size: 1.5em; }
-  /* 최고/최저를 분수처럼 위아래로 */
-  .frac { display: inline-flex; flex-direction: column; align-items: center; font-size: 0.78em; line-height: 1.05; }
-  .frac > :first-child { border-bottom: 1px solid var(--muted); padding: 0 0.1em 0.06em; margin-bottom: 0.06em; }
-  #app.column .tomorrow .row { justify-content: center; }
-  /* 세로로 긴 임베드 */
-  #app.column { flex-direction: column; text-align: center; }
-  #app.column .today { flex-direction: column; gap: 0.15em; }
-  #app.column .tomorrow { margin: 0.4em 0 0; padding: 0.35em 0 0; border-left: 0; border-top: 1px solid var(--line); }
-</style>
+<link rel="stylesheet" href="../shared/weather.css">
 </head>
 <body>
-<div id="app">
-  <div class="today">
-    <div class="emoji" id="icon">·</div>
-    <div>
-      <div class="label"><span id="label"></span><span class="pct" id="rain"></span></div>
-      <div class="temps"><span id="max">–</span><span class="sep">/</span><span class="muted" id="min">–</span></div>
-    </div>
-  </div>
-  <div class="tomorrow" id="tmr" hidden>
-    <div class="label">내일<span class="pct" id="t-rain"></span></div>
-    <div class="row"><span class="emoji" id="t-icon"></span><span class="frac"><span id="t-max"></span><span class="muted" id="t-min"></span></span></div>
-  </div>
-</div>
 <script type="module">
-  import { param, numParam, onVisible } from '../shared/common.js';
+  import { createWeather } from '../shared/weather.js';
   import { fit, autoFit } from '../shared/fit.js';
 
-  // 위치는 저장소에 두지 않고 임베드 주소로만 받음
-  //   ?city=서울          도시 이름 (Open-Meteo 지오코딩으로 좌표 검색)
-  //   ?lat=..&lon=..      좌표를 직접 지정 (city보다 우선)
-  //   ?name=집            화면에 보일 이름 (기본: city 값)
-  //   ?tomorrow=0         내일 날씨 숨김
-  const city = param('city', '').trim();
-  const latP = numParam('lat', NaN);
-  const lonP = numParam('lon', NaN);
-  const hasCoords = Number.isFinite(latP) && Number.isFinite(lonP);
-  const name = param('name', city);
-  const showTomorrow = param('tomorrow', '1') === '1';
-  const REFRESH_MS = 30 * 60_000;
-  const cacheKey = `weather:${hasCoords ? `${latP},${lonP}` : city}`;
-  const app = document.getElementById('app');
-  const $ = (id) => document.getElementById(id);
-
-  // WMO 날씨 코드 → [이모지, 설명]
-  function describe(code) {
-    if (code === 0) return ['☀️', '맑음'];
-    if (code === 1) return ['🌤️', '대체로 맑음'];
-    if (code === 2) return ['⛅', '구름 조금'];
-    if (code === 3) return ['☁️', '흐림'];
-    if (code === 45 || code === 48) return ['🌫️', '안개'];
-    if (code >= 51 && code <= 57) return ['🌦️', '이슬비'];
-    if (code >= 61 && code <= 67) return ['🌧️', '비'];
-    if (code >= 71 && code <= 77) return ['❄️', '눈'];
-    if (code >= 80 && code <= 82) return ['🌦️', '소나기'];
-    if (code === 85 || code === 86) return ['🌨️', '눈 소나기'];
-    if (code >= 95) return ['⛈️', '뇌우'];
-    return ['·', ''];
-  }
-
-  // 해당 지역 시간대 기준 오늘 (YYYY-MM-DD)
-  const today = (tz) => new Date().toLocaleDateString('sv-SE', { timeZone: tz });
-
-  function readCache(key = cacheKey) {
-    try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
-  }
-  function writeCache(v, key = cacheKey) {
-    try { localStorage.setItem(key, JSON.stringify(v)); } catch {}
-  }
-
-  function setLabel(text) {
-    $('label').textContent = text;
-    layout();
-  }
-
-  // 도시 이름 → 좌표 (한 번 찾으면 이 브라우저에 저장)
-  async function locate() {
-    if (hasCoords) return { lat: latP, lon: lonP };
-    const key = `geo:${city}`;
-    const saved = readCache(key);
-    if (saved) return saved;
-    const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
-    url.search = new URLSearchParams({ name: city, count: 1, language: 'ko', format: 'json' });
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(res.status);
-    const hit = (await res.json()).results?.[0];
-    if (!hit) return null;
-    const place = { lat: hit.latitude, lon: hit.longitude };
-    writeCache(place, key);
-    return place;
-  }
-
-  function render(w) {
-    const [d0, d1] = w.days;
-    const [emoji, desc] = describe(d0.code);
-    $('icon').textContent = emoji;
-    $('rain').textContent = d0.rain == null ? '' : `${d0.rain}%`;
-    $('max').textContent = `${Math.round(d0.max)}°`;
-    $('min').textContent = `${Math.round(d0.min)}°`;
-    if (showTomorrow && d1) {
-      $('t-icon').textContent = describe(d1.code)[0];
-      $('t-max').textContent = `${Math.round(d1.max)}°`;
-      $('t-min').textContent = `${Math.round(d1.min)}°`;
-      $('t-rain').textContent = d1.rain == null ? '' : `${d1.rain}%`;
-      $('tmr').hidden = false;
-    }
-    setLabel([name, desc].filter(Boolean).join(' · '));
-  }
+  const wx = createWeather(() => layout());
+  document.body.append(wx);
 
   // 세로로 긴 임베드면 위아래로 쌓고, 전체를 임베드에 꽉 채움
   function layout() {
-    app.classList.toggle('column', innerWidth / innerHeight < 1.3);
-    fit(app);
+    wx.classList.toggle('column', innerWidth / innerHeight < 1.3);
+    fit(wx);
   }
-
-  let fetchedAt = 0;
-  async function refresh() {
-    if (!hasCoords && !city) return setLabel('주소에 ?city=도시이름 을 넣어 주세요');
-    let place;
-    try {
-      place = await locate();
-    } catch {
-      if (!fetchedAt) setLabel(`${name} · 불러오지 못함`);
-      return;
-    }
-    if (!place) return setLabel(`'${city}'을(를) 찾지 못함`);
-    const url = new URL('https://api.open-meteo.com/v1/forecast');
-    url.search = new URLSearchParams({
-      latitude: place.lat, longitude: place.lon, timezone: 'auto', forecast_days: 2,
-      daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
-    });
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(res.status);
-      const { daily, timezone } = await res.json();
-      const w = {
-        date: daily.time[0],
-        tz: timezone,
-        days: daily.time.map((_, i) => ({
-          code: daily.weather_code[i],
-          max: daily.temperature_2m_max[i],
-          min: daily.temperature_2m_min[i],
-          rain: daily.precipitation_probability_max[i],
-        })),
-      };
-      fetchedAt = Date.now();
-      writeCache(w);
-      render(w);
-    } catch {
-      if (!fetchedAt) setLabel(`${name} · 불러오지 못함`);
-    }
-  }
-
   autoFit(layout);
-  const cached = hasCoords || city ? readCache() : null;
-  if (cached?.days) render(cached);
-  refresh();
-  setInterval(refresh, REFRESH_MS);
-  onVisible(() => {
-    const c = readCache();
-    const stale = Date.now() - fetchedAt > REFRESH_MS || !c?.days || c.date !== today(c.tz);
-    if (stale) refresh();
-  });
 </script>
 </body>
 </html>

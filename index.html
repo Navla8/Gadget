@@ -49,27 +49,24 @@
 
   /* 시계 배치판 */
   .board {
-    display: grid; grid-template-columns: 1fr 1.6fr 1fr; grid-template-rows: 44px auto 44px;
-    gap: 6px; max-width: 420px; margin: 8px 0 16px; font-size: 0.9rem;
+    display: grid; grid-template-columns: 1fr 1.3fr 1fr; grid-template-rows: auto auto auto;
+    gap: 6px; max-width: 460px; margin: 8px 0 16px; font-size: 0.9rem;
   }
   .zone {
-    border: 1px dashed var(--line); border-radius: 6px; display: grid; place-items: center;
-    color: var(--muted); font-size: 0.8rem; min-height: 44px; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+    border: 1px dashed var(--line); border-radius: 6px; padding: 6px; min-height: 44px;
+    display: flex; flex-direction: column; gap: 5px; justify-content: center;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
   }
-  .zone:empty::after { content: attr(data-label); }
-  .zone.over, .stackbox.over { border-color: var(--accent); background: var(--soft); }
-  .z-top { grid-area: 1 / 2; } .z-left { grid-area: 2 / 1; } .z-right { grid-area: 2 / 3; } .z-bottom { grid-area: 3 / 2; }
-  .stackbox {
-    grid-area: 2 / 2; border: 1px solid var(--line); border-radius: 6px; padding: 8px;
-    display: flex; flex-direction: column; gap: 6px; min-height: 88px; justify-content: center;
-  }
-  .stackbox .note { font-size: 0.75rem; color: var(--muted); text-align: center; }
+  .zone:empty::after { content: attr(data-label); color: var(--muted); font-size: 0.8rem; text-align: center; }
+  .zone.over { border-color: var(--accent); background: var(--soft); }
+  .z-top { grid-area: 1 / 2; } .z-left { grid-area: 2 / 1; } .z-center { grid-area: 2 / 2; min-height: 96px; border-style: solid; }
+  .z-right { grid-area: 2 / 3; } .z-bottom { grid-area: 3 / 2; }
   .chip {
     border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; text-align: center;
-    background: var(--bg); cursor: grab; user-select: none;
+    background: var(--bg); cursor: grab; user-select: none; touch-action: none;
   }
-  .chip.analog { color: var(--accent); border-color: var(--accent); }
-  .chip.off { opacity: 0.35; }
+  .chip.off { opacity: 0.35; text-decoration: line-through; }
+  .chip.picked { border-color: var(--accent); color: var(--accent); }
   .chip:active { cursor: grabbing; }
   .hint { font-size: 0.8rem; color: var(--muted); margin: -8px 0 12px; }
 </style>
@@ -81,6 +78,8 @@
   <div class="global opts">
     <label>포인트 색 <input type="color" id="accent"></label>
     <label>테마 <select id="theme"><option value="auto">시스템</option><option value="light">라이트</option><option value="dark">다크</option></select></label>
+    <label>날씨 도시 <input id="city" placeholder="예: 서울"></label>
+    <label>표시 이름 <input id="cityName" placeholder="(선택)"></label>
     <button id="resetAll" style="font-size:0.85rem">설정 초기화</button>
   </div>
   <div id="list"></div>
@@ -92,35 +91,42 @@
   try { saved = JSON.parse(localStorage.getItem(STORE)) ?? {}; } catch {}
   const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch {} };
 
+  // ── 공통 설정: 맨 위에서 한 번만 정하고 모든 주소에 붙임 ──
   const DEFAULT_ACCENT = '#c8553d';
-  const accentEl = document.getElementById('accent');
-  const themeEl = document.getElementById('theme');
-  accentEl.value = saved.accent ?? DEFAULT_ACCENT;
-  themeEl.value = saved.theme ?? 'auto';
+  const g = Object.fromEntries(['accent', 'theme', 'city', 'cityName'].map((id) => [id, document.getElementById(id)]));
+  g.accent.value = saved.accent ?? DEFAULT_ACCENT;
+  g.theme.value = saved.theme ?? 'auto';
+  g.city.value = saved.city ?? '';
+  g.cityName.value = saved.cityName ?? '';
   document.getElementById('resetAll').onclick = () => { saved = {}; persist(); location.reload(); };
 
-  // 공통 옵션은 맨 위에서 한 번만 정하고 모든 주소에 붙임
-  function globalQuery(q) {
-    const a = accentEl.value.replace('#', '');
+  function globalQuery(q, { weather }) {
+    if (weather) {
+      if (g.city.value.trim()) q.set('city', g.city.value.trim());
+      if (g.cityName.value.trim()) q.set('name', g.cityName.value.trim());
+    }
+    const a = g.accent.value.replace('#', '');
     if (a !== DEFAULT_ACCENT.slice(1)) q.set('accent', a);
-    if (themeEl.value !== 'auto') q.set('theme', themeEl.value);
+    if (g.theme.value !== 'auto') q.set('theme', g.theme.value);
   }
 
   // ── 모듈 정의 ───────────────────────────────────────
   // type: check(0/1) | select | text | number | range
   const modules = [
-    { key: 'clock', path: 'clock/', title: '시계 · 날짜', size: [480, 160], board: true, opts: [
-      { key: 'asize', label: '아날로그 크기', type: 'range', min: 0.5, max: 2, step: 0.05, def: '1' },
-      { key: 'gap', label: '간격', type: 'range', min: 0, max: 1, step: 0.05, def: '0.15' },
+    { key: 'clock', path: 'clock/', title: '시계 · 날짜 · 날씨', size: [520, 170], board: true, opts: [
+      { key: 'asize', label: '아날로그', type: 'range', min: 0.3, max: 2.5, step: 0.05, def: '1', group: 'size' },
+      { key: 'dsize', label: '디지털', type: 'range', min: 0.3, max: 2.5, step: 0.05, def: '1', group: 'size' },
+      { key: 'datesize', label: '날짜', type: 'range', min: 0.3, max: 2.5, step: 0.05, def: '1', group: 'size' },
+      { key: 'wsize', label: '날씨', type: 'range', min: 0.3, max: 2.5, step: 0.05, def: '1', group: 'size' },
+      { key: 'gap', label: '간격', type: 'range', min: 0, max: 1, step: 0.05, def: '0.15', group: 'size' },
       { key: 'hand', label: '초침', type: 'check', def: '1' },
       { key: 'seconds', label: '디지털 초', type: 'check', def: '0' },
       { key: 'hour12', label: '12시간제', type: 'check', def: '0' },
       { key: 'blink', label: '콜론 깜박임', type: 'check', def: '1' },
+      { key: 'tomorrow', label: '내일 날씨', type: 'check', def: '1' },
       { key: 'lang', label: '언어', type: 'select', options: [['ko', '한국어'], ['en', 'English']], def: 'ko' },
     ] },
-    { key: 'weather', path: 'weather/', title: '날씨', size: [420, 110], opts: [
-      { key: 'city', label: '도시', type: 'text', def: '', placeholder: '예: 서울' },
-      { key: 'name', label: '표시 이름', type: 'text', def: '', placeholder: '(선택)' },
+    { key: 'weather', path: 'weather/', title: '날씨 (단독)', size: [420, 110], weather: true, opts: [
       { key: 'tomorrow', label: '내일 날씨', type: 'check', def: '1' },
     ] },
     { key: 'pomodoro', path: 'pomodoro/', title: '포모도로', size: [300, 280], opts: [
@@ -140,39 +146,44 @@
   const readControl = (input) => (input.type === 'checkbox' ? (input.checked ? '1' : '0') : input.value.trim());
 
   // ── 시계 배치판 (드래그 앤 드롭) ─────────────────────
-  // 상태: analog/digital/date 표시 여부, 아날로그 위치(pos), 날짜 먼저(datefirst)
-  const BOARD_DEF = { analog: '1', digital: '1', date: '1', pos: 'left', datefirst: '0' };
-  const CLOCK_DEF = { analog: '0', digital: '1', date: '0', pos: 'left', datefirst: '0' };
-  const ZONES = [['top', '위'], ['left', '왼쪽'], ['right', '오른쪽'], ['bottom', '아래']];
+  // 다섯 칸 어디에든 요소를 놓을 수 있고, 한 칸에 여러 개면 위아래로 쌓임
+  const SLOTS = [['top', '위'], ['left', '왼쪽'], ['center', '가운데'], ['right', '오른쪽'], ['bottom', '아래']];
+  const ITEMS = [['analog', '아날로그'], ['digital', '디지털'], ['date', '날짜'], ['weather', '날씨']];
+  const itemLabel = Object.fromEntries(ITEMS);
+  const BOARD_DEF = () => ({
+    slots: { top: [], left: ['analog'], center: ['digital', 'date'], right: ['weather'], bottom: [] },
+    on: { analog: true, digital: true, date: true, weather: false },
+  });
 
   function boardHtml() {
     return `
-      <div class="opts">
-        <label><input type="checkbox" data-b="analog"> 아날로그</label>
-        <label><input type="checkbox" data-b="digital"> 디지털</label>
-        <label><input type="checkbox" data-b="date"> 날짜</label>
-      </div>
-      <div class="board">
-        ${ZONES.map(([z, t]) => `<div class="zone z-${z}" data-zone="${z}" data-label="${t}"></div>`).join('')}
-        <div class="stackbox" data-zone="inside"></div>
-      </div>
-      <p class="hint">아날로그를 칸으로 끌어다 놓아 위치를 정하세요(가운데 = 안쪽). 디지털·날짜는 서로 끌어 순서를 바꿉니다. 클릭해도 됩니다.</p>`;
+      <div class="opts">${ITEMS.map(([k, t]) => `<label><input type="checkbox" data-on="${k}"> ${t}</label>`).join('')}</div>
+      <div class="board">${SLOTS.map(([z, t]) => `<div class="zone z-${z}" data-zone="${z}" data-label="${t}"></div>`).join('')}</div>
+      <p class="hint">요소를 원하는 칸으로 끌어다 놓으세요. 한 칸에 여러 개를 놓으면 위아래로 쌓입니다. 끌기가 불편하면 요소를 누른 뒤 옮길 칸을 누르세요.</p>`;
   }
 
   function setupBoard(sec, b, onChange) {
-    const chip = (kind, text) => `<div class="chip ${kind}${b[kind] === '1' ? '' : ' off'}" draggable="true" data-chip="${kind}">${text}</div>`;
+    let picked = null;
     const draw = () => {
-      sec.querySelectorAll('[data-b]').forEach((c) => { c.checked = b[c.dataset.b] === '1'; });
-      sec.querySelectorAll('.zone').forEach((z) => { z.innerHTML = b.pos === z.dataset.zone ? chip('analog', '아날로그') : ''; });
-      const text = b.datefirst === '1' ? [chip('date', '날짜'), chip('digital', '디지털')] : [chip('digital', '디지털'), chip('date', '날짜')];
-      sec.querySelector('.stackbox').innerHTML =
-        (b.pos === 'inside' ? `${chip('analog', '아날로그')}<div class="note">↑ 안쪽에 글자</div>` : '') + text.join('');
+      sec.querySelectorAll('[data-on]').forEach((c) => { c.checked = b.on[c.dataset.on]; });
+      sec.querySelectorAll('.zone').forEach((z) => {
+        z.innerHTML = b.slots[z.dataset.zone].map((it) =>
+          `<div class="chip${b.on[it] ? '' : ' off'}${picked === it ? ' picked' : ''}" draggable="true" data-chip="${it}">${itemLabel[it]}</div>`).join('');
+      });
     };
-    const moveAnalog = (zone) => { b.pos = zone; draw(); onChange(); };
-    const swapText = () => { b.datefirst = b.datefirst === '1' ? '0' : '1'; draw(); onChange(); };
+    // 요소를 zone의 before 앞(없으면 맨 뒤)으로 옮김
+    const move = (it, zone, before) => {
+      for (const list of Object.values(b.slots)) { const i = list.indexOf(it); if (i >= 0) list.splice(i, 1); }
+      const list = b.slots[zone];
+      const at = before && before !== it ? list.indexOf(before) : -1;
+      list.splice(at >= 0 ? at : list.length, 0, it);
+      picked = null;
+      draw();
+      onChange();
+    };
 
-    sec.querySelectorAll('[data-b]').forEach((c) => c.addEventListener('change', () => {
-      b[c.dataset.b] = c.checked ? '1' : '0'; draw(); onChange();
+    sec.querySelectorAll('[data-on]').forEach((c) => c.addEventListener('change', () => {
+      b.on[c.dataset.on] = c.checked; draw(); onChange();
     }));
 
     let dragging = null;
@@ -181,25 +192,19 @@
       e.dataTransfer?.setData('text/plain', dragging ?? '');
     });
     sec.addEventListener('dragend', () => { dragging = null; sec.querySelectorAll('.over').forEach((n) => n.classList.remove('over')); });
-    sec.querySelectorAll('[data-zone]').forEach((z) => {
-      z.addEventListener('dragover', (e) => {
-        if (dragging === 'analog' || (dragging && z.dataset.zone === 'inside')) { e.preventDefault(); z.classList.add('over'); }
-      });
+    sec.querySelectorAll('.zone').forEach((z) => {
+      z.addEventListener('dragover', (e) => { if (dragging) { e.preventDefault(); z.classList.add('over'); } });
       z.addEventListener('dragleave', () => z.classList.remove('over'));
       z.addEventListener('drop', (e) => {
         e.preventDefault();
         z.classList.remove('over');
-        if (dragging === 'analog') moveAnalog(z.dataset.zone);
-        else if (dragging) {
-          const target = e.target.closest('[data-chip]')?.dataset.chip;
-          if (target && target !== dragging && target !== 'analog') swapText();
-        }
+        if (dragging) move(dragging, z.dataset.zone, e.target.closest('[data-chip]')?.dataset.chip);
       });
-      // 클릭: 빈 칸 → 아날로그 이동, 글자 칩 → 순서 바꾸기
+      // 클릭: 요소를 고른 뒤 칸(또는 그 칸의 요소 앞)을 누르면 이동
       z.addEventListener('click', (e) => {
         const c = e.target.closest('[data-chip]')?.dataset.chip;
-        if (c === 'digital' || c === 'date') swapText();
-        else if (!c) moveAnalog(z.dataset.zone);
+        if (picked && picked !== c) move(picked, z.dataset.zone, c);
+        else { picked = picked === c ? null : c ?? null; draw(); }
       });
     });
     draw();
@@ -214,13 +219,14 @@
     const s = (saved[m.key] ??= {});
     const value = (o) => s[o.key] ?? o.def;
     const [w, h] = s.size ?? m.size;
+    const groups = [m.opts.filter((o) => o.group === 'size'), m.opts.filter((o) => o.group !== 'size')].filter((x) => x.length);
     const sec = document.createElement('section');
     sec.innerHTML = `
       <div class="head"><h2>${m.title}</h2>
         <span class="opts" style="margin:0">미리보기
           <input class="size" type="number" data-w value="${w}">×<input class="size" type="number" data-h value="${h}">px</span></div>
       ${m.board ? boardHtml() : ''}
-      <div class="opts">${m.opts.map((o) => control(o, value(o))).join('')}</div>
+      ${groups.map((gr) => `<div class="opts">${gr[0].group === 'size' ? '<span>크기</span>' : ''}${gr.map((o) => control(o, value(o))).join('')}</div>`).join('')}
       <div class="frame" style="width:${w}px;height:${h}px"><iframe loading="lazy"></iframe></div>
       <div class="url"><code></code><button>복사</button></div>`;
     list.append(sec);
@@ -228,21 +234,25 @@
     const frame = sec.querySelector('.frame');
     const iframe = sec.querySelector('iframe');
     const code = sec.querySelector('code');
-    const board = m.board ? (s.board ??= { ...BOARD_DEF }) : null;
+    // 이전 형식(pos 등)으로 저장된 배치는 새 기본값으로
+    if (m.board && !s.board?.slots) s.board = BOARD_DEF();
+    const board = m.board ? s.board : null;
 
     const update = () => {
       const q = new URLSearchParams();
-      // 시계 모듈 자체의 기본값(디지털만)과 다른 것만 주소에 넣음
-      if (board) for (const [k, d] of Object.entries(CLOCK_DEF)) if (board[k] !== d) q.set(k, board[k]);
+      if (board) for (const [z] of SLOTS) {
+        const items = board.slots[z].filter((it) => board.on[it]);
+        if (items.length) q.set(z, items.join(','));
+      }
       for (const o of m.opts) {
         const v = readControl(sec.querySelector(`[data-k="${o.key}"]`));
         s[o.key] = v;
         if (v !== '' && v !== o.def) q.set(o.key, v);
       }
-      globalQuery(q);
+      globalQuery(q, { weather: m.weather || board?.on.weather });
       persist();
       const url = new URL(m.path, base);
-      url.search = q;
+      url.search = q.toString().replaceAll('%2C', ',');
       code.textContent = url.href;
       if (iframe.src !== url.href) iframe.src = url.href;
     };
@@ -263,7 +273,7 @@
       s.size = sizeInputs.map((x) => Number(x.value)); persist();
     }).observe(frame);
 
-    sec.querySelector('button').addEventListener('click', async (e) => {
+    sec.querySelector('.url button').addEventListener('click', async (e) => {
       try { await navigator.clipboard.writeText(code.textContent); e.target.textContent = '복사됨'; }
       catch { e.target.textContent = '직접 복사해 주세요'; }
       setTimeout(() => { e.target.textContent = '복사'; }, 1500);
@@ -272,13 +282,12 @@
   }
 
   const updateGlobal = () => {
-    saved.accent = accentEl.value; saved.theme = themeEl.value;
-    document.documentElement.style.setProperty('--accent', accentEl.value);
+    Object.assign(saved, { accent: g.accent.value, theme: g.theme.value, city: g.city.value.trim(), cityName: g.cityName.value.trim() });
+    document.documentElement.style.setProperty('--accent', g.accent.value);
     updaters.forEach((u) => u());
   };
-  accentEl.addEventListener('change', updateGlobal);
-  themeEl.addEventListener('change', updateGlobal);
-  document.documentElement.style.setProperty('--accent', accentEl.value);
+  Object.values(g).forEach((i) => i.addEventListener('change', updateGlobal));
+  document.documentElement.style.setProperty('--accent', g.accent.value);
 </script>
 </body>
 </html>

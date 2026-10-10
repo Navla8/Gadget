@@ -7,13 +7,13 @@
 
 | 모듈 | 경로 | 옵션 |
 |---|---|---|
-| 시계 · 날짜 | `clock/` | 표시: `analog`, `digital`, `date` (0/1) · 배치: `pos=left\|right\|top\|bottom\|inside`, `datefirst=1`, `gap=0.15`, `asize=1`(아날로그 크기 배율) · `hand=0`(초침 숨김), `seconds=1`, `hour12=1`, `blink=0`, `lang=en`, `tz` |
+| 시계 · 날짜 · 날씨 | `clock/` | 배치: `top`·`left`·`center`·`right`·`bottom` = 요소 목록 (예: `left=analog&center=digital,date&right=weather`, 한 칸에 여럿이면 위아래로 쌓임) · 크기: `asize`, `dsize`, `datesize`, `wsize` (기본 1), `gap=0.15` · `hand=0`, `seconds=1`, `hour12=1`, `blink=0`, `lang=en`, `tz` · 날씨를 넣으면 `city`, `name`, `tomorrow`도 사용 |
 | 날씨 | `weather/` | `city=서울` (필수), `name=표시 이름`, `tomorrow=0`, 또는 `lat`+`lon` |
 | 포모도로 | `pomodoro/` | `min=90`, `layout=auto\|ring\|bar`, `vol=0.6`, `id=default` |
 
 공통 옵션: `theme=auto|light|dark`, `accent=c8553d` (# 없는 hex).
-루트의 `index.html`(설정 화면)에서 포인트 색을 한 번 정하면 모든 주소에 적용되고, 시계 배치는 드래그 앤 드롭으로 정할 수 있습니다. 설정은 브라우저에 저장됩니다.
-모든 위젯은 내용물을 임베드 크기에 꽉 맞춰 그리므로, 노션에서 블록 크기만 조절하면 됩니다. 이전 `date/` 주소는 날짜만 보이는 시계로 연결됩니다.
+루트의 `index.html`(설정 화면)에서 포인트 색·테마·날씨 도시를 한 번 정하면 모든 주소에 적용되고, 시계 배치는 드래그 앤 드롭으로 정할 수 있습니다. 설정은 브라우저에 저장됩니다.
+모든 위젯은 내용물을 임베드 크기에 꽉 맞춰 그리므로, 노션에서 블록 크기만 조절하면 됩니다. 이전 `date/` 주소와 이전 시계 옵션(`analog`, `pos` 등)도 계속 동작합니다. 단, 아날로그 안쪽 배치(`pos=inside`)는 아날로그를 왼쪽에 둔 배치로 바뀝니다.
 
 ## 배포 (GitHub Pages)
 
