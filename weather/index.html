@@ -18,8 +18,12 @@
   .sep { color: var(--muted); margin: 0 0.12em; }
   .tomorrow { margin-left: 0.5em; padding-left: 0.5em; border-left: 1px solid var(--line); }
   .tomorrow .label { font-size: 0.32em; }
-  .tomorrow .row { font-size: 0.5em; margin-top: 0.15em; }
-  .tomorrow .emoji { font-size: 1.1em; margin-right: 0.15em; vertical-align: -0.1em; }
+  .tomorrow .row { display: flex; align-items: center; gap: 0.2em; font-size: 0.5em; margin-top: 0.12em; }
+  .tomorrow .emoji { font-size: 1.5em; }
+  /* 최고/최저를 분수처럼 위아래로 */
+  .frac { display: inline-flex; flex-direction: column; align-items: center; font-size: 0.78em; line-height: 1.05; }
+  .frac > :first-child { border-bottom: 1px solid var(--muted); padding: 0 0.1em 0.06em; margin-bottom: 0.06em; }
+  #app.column .tomorrow .row { justify-content: center; }
   /* 세로로 긴 임베드 */
   #app.column { flex-direction: column; text-align: center; }
   #app.column .today { flex-direction: column; gap: 0.15em; }
@@ -36,8 +40,8 @@
     </div>
   </div>
   <div class="tomorrow" id="tmr" hidden>
-    <div class="label">내일</div>
-    <div class="row"><span class="emoji" id="t-icon"></span><span id="t-max"></span><span class="sep">/</span><span class="muted" id="t-min"></span><span class="pct" id="t-rain"></span></div>
+    <div class="label">내일<span class="pct" id="t-rain"></span></div>
+    <div class="row"><span class="emoji" id="t-icon"></span><span class="frac"><span id="t-max"></span><span class="muted" id="t-min"></span></span></div>
   </div>
 </div>
 <script type="module">
