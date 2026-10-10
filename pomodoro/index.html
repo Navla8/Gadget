@@ -42,7 +42,7 @@
     align-items: center; justify-content: center;
   }
   .ring svg.track { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-  .ring circle { fill: none; stroke-width: 1.6; }
+  .ring circle { fill: none; stroke-width: 2.6; }
   .ring .bg { stroke: var(--line); }
   .ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
   .ring .inner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.45em; font-size: calc(var(--size) * 0.075); }
@@ -53,7 +53,7 @@
   .bar { width: 100%; flex-direction: column; gap: 0.3em; padding: 0 2px; }
   .bar .row { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
   .bar .time { font-size: 2em; line-height: 0.8; }  /* 숫자 위아래 빈 줄 높이를 덜어냄 */
-  .bar .meter { height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .bar .meter { height: max(3px, 0.07em); background: var(--line); border-radius: 99px; overflow: hidden; }
   .bar .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 0.25s linear; }
   .bar .side { display: flex; align-items: center; gap: 1em; }
 </style>
@@ -61,7 +61,7 @@
 <body>
 <div id="app">
   <div class="view ring">
-    <svg class="track" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="48"/><circle class="fg" cx="50" cy="50" r="48" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"/></svg>
+    <svg class="track" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="48.6"/><circle class="fg" cx="50" cy="50" r="48.6" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"/></svg>
     <div class="inner">
       <div class="time" data-time></div>
       <div class="controls" data-controls></div>
