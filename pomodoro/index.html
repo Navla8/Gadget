@@ -86,6 +86,7 @@
   const DEFAULT_MIN = numParam('min', 90);
   const VOLUME = Math.min(1, Math.max(0, numParam('vol', 0.6)));
   const layoutParam = param('layout', 'auto');      // auto | bar | ring
+  const barSize = Math.min(1, Math.max(0.2, numParam('tsize', 1)));   // 막대 형태 크기 (1 = 높이 꽉 채움)
 
   const app = document.getElementById('app');
   const $$ = (sel) => document.querySelectorAll(sel);
@@ -289,7 +290,7 @@
     const row = bar.querySelector('.row');
     const needW = [...row.children].reduce((w, c) => w + c.offsetWidth, 0) + 100;   // + 사이 간격 1em
     const scale = Math.min((innerHeight - 4) / bar.offsetHeight, (innerWidth - 4) / needW);
-    bar.style.fontSize = `${100 * scale}px`;
+    bar.style.fontSize = `${100 * scale * barSize}px`;
   }
   addEventListener('resize', fitBar);
   document.fonts?.ready.then(fitBar);
