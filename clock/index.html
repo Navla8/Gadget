@@ -51,7 +51,7 @@
   //       요소: analog, digital, date, weather      예) ?left=analog&center=digital,date
   // 크기: asize, dsize, datesize, wsize (기본 1)   간격: gap=0.15 (em)
   // 기타: hand=0 (초침 숨김), seconds=1, hour12=1, blink=0, lang=en, tz=Asia/Seoul
-  //       날씨는 city / name / tomorrow (날씨 위젯과 같음)
+  //       날씨는 city / name / tomorrow (날씨 위젯과 같음), wdir=auto|row|column (방향)
   const SLOTS = ['top', 'left', 'center', 'right', 'bottom'];
   const ITEMS = ['analog', 'digital', 'date', 'weather'];
   const on = (k, d) => param(k, d) === '1';
@@ -142,7 +142,16 @@
         </svg>`);
       item.append(faces.analog);
     } else if (kind === 'weather') {
-      import('../shared/weather.js').then(({ createWeather }) => { item.append(createWeather(() => layout())); layout(); });
+      // 방향: 자동이면 왼쪽·오른쪽 칸을 혼자 차지할 때 세로, 그 외엔 가로
+      const wdir = param('wdir', 'auto');
+      const s = where('weather');
+      const column = wdir === 'column' || (wdir === 'auto' && (s === 'left' || s === 'right') && slots[s].length === 1);
+      import('../shared/weather.js').then(({ createWeather }) => {
+        const wx = createWeather(() => layout());
+        wx.classList.toggle('column', column);
+        item.append(wx);
+        layout();
+      });
     }
     return item;
   }

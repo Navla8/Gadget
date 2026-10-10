@@ -7,7 +7,7 @@
 
 | 모듈 | 경로 | 옵션 |
 |---|---|---|
-| 시계 · 날짜 · 날씨 | `clock/` | 배치: `top`·`left`·`center`·`right`·`bottom` = 요소 목록 (예: `left=analog&center=digital,date&right=weather`, 한 칸에 여럿이면 위아래로 쌓임) · 크기: `asize`, `dsize`, `datesize`, `wsize` (기본 1), `gap=0.15` · `hand=0`, `seconds=1`, `hour12=1`, `blink=0`, `lang=en`, `tz` · 날씨를 넣으면 `city`, `name`, `tomorrow`도 사용 |
+| 시계 · 날짜 · 날씨 | `clock/` | 배치: `top`·`left`·`center`·`right`·`bottom` = 요소 목록 (예: `left=analog&center=digital,date&right=weather`, 한 칸에 여럿이면 위아래로 쌓임) · 크기: `asize`, `dsize`, `datesize`, `wsize` (기본 1), `gap=0.15` · `hand=0`, `seconds=1`, `hour12=1`, `blink=0`, `lang=en`, `tz` · 날씨를 넣으면 `city`, `name`, `tomorrow`, `wdir=auto\|row\|column`(자동: 왼쪽·오른쪽 칸을 혼자 차지하면 세로)도 사용 |
 | 날씨 (단독) | `weather/` | `city=서울` (필수), `name=표시 이름`, `tomorrow=0`, 또는 `lat`+`lon` — 설정 화면에서는 시계 위젯에 날씨만 켜서 쓰면 됨 |
 | 포모도로 | `pomodoro/` | `min=90`, `layout=auto\|ring\|bar`, `vol=0.6`, `id=default` |
 
