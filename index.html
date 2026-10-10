@@ -78,8 +78,6 @@
   <div class="global opts">
     <label>포인트 색 <input type="color" id="accent"></label>
     <label>테마 <select id="theme"><option value="auto">시스템</option><option value="light">라이트</option><option value="dark">다크</option></select></label>
-    <label>날씨 도시 <input id="city" placeholder="예: 서울"></label>
-    <label>표시 이름 <input id="cityName" placeholder="(선택)"></label>
     <button id="resetAll" style="font-size:0.85rem">설정 초기화</button>
   </div>
   <div id="list"></div>
@@ -93,18 +91,12 @@
 
   // ── 공통 설정: 맨 위에서 한 번만 정하고 모든 주소에 붙임 ──
   const DEFAULT_ACCENT = '#c8553d';
-  const g = Object.fromEntries(['accent', 'theme', 'city', 'cityName'].map((id) => [id, document.getElementById(id)]));
+  const g = Object.fromEntries(['accent', 'theme'].map((id) => [id, document.getElementById(id)]));
   g.accent.value = saved.accent ?? DEFAULT_ACCENT;
   g.theme.value = saved.theme ?? 'auto';
-  g.city.value = saved.city ?? '';
-  g.cityName.value = saved.cityName ?? '';
   document.getElementById('resetAll').onclick = () => { saved = {}; persist(); location.reload(); };
 
-  function globalQuery(q, { weather }) {
-    if (weather) {
-      if (g.city.value.trim()) q.set('city', g.city.value.trim());
-      if (g.cityName.value.trim()) q.set('name', g.cityName.value.trim());
-    }
+  function globalQuery(q) {
     const a = g.accent.value.replace('#', '');
     if (a !== DEFAULT_ACCENT.slice(1)) q.set('accent', a);
     if (g.theme.value !== 'auto') q.set('theme', g.theme.value);
@@ -123,11 +115,10 @@
       { key: 'seconds', label: '디지털 초', type: 'check', def: '0' },
       { key: 'hour12', label: '12시간제', type: 'check', def: '0' },
       { key: 'blink', label: '콜론 깜박임', type: 'check', def: '1' },
-      { key: 'tomorrow', label: '내일 날씨', type: 'check', def: '1' },
       { key: 'lang', label: '언어', type: 'select', options: [['ko', '한국어'], ['en', 'English']], def: 'ko' },
-    ] },
-    { key: 'weather', path: 'weather/', title: '날씨 (단독)', size: [420, 110], weather: true, opts: [
-      { key: 'tomorrow', label: '내일 날씨', type: 'check', def: '1' },
+      { key: 'city', label: '도시', type: 'text', def: '', placeholder: '예: 서울', group: 'weather' },
+      { key: 'name', label: '표시 이름', type: 'text', def: '', placeholder: '(선택)', group: 'weather' },
+      { key: 'tomorrow', label: '내일 날씨', type: 'check', def: '1', group: 'weather' },
     ] },
     { key: 'pomodoro', path: 'pomodoro/', title: '포모도로', size: [300, 280], opts: [
       { key: 'min', label: '기본 분', type: 'number', def: '90' },
@@ -217,16 +208,18 @@
 
   for (const m of modules) {
     const s = (saved[m.key] ??= {});
+    if (m.key === 'clock' && saved.city && s.city === undefined) { s.city = saved.city; s.name = saved.cityName; }
     const value = (o) => s[o.key] ?? o.def;
     const [w, h] = s.size ?? m.size;
-    const groups = [m.opts.filter((o) => o.group === 'size'), m.opts.filter((o) => o.group !== 'size')].filter((x) => x.length);
+    const GROUP_TITLE = { size: '크기', weather: '날씨' };
+    const groups = ['size', undefined, 'weather'].map((gk) => m.opts.filter((o) => o.group === gk)).filter((x) => x.length);
     const sec = document.createElement('section');
     sec.innerHTML = `
       <div class="head"><h2>${m.title}</h2>
         <span class="opts" style="margin:0">미리보기
           <input class="size" type="number" data-w value="${w}">×<input class="size" type="number" data-h value="${h}">px</span></div>
       ${m.board ? boardHtml() : ''}
-      ${groups.map((gr) => `<div class="opts">${gr[0].group === 'size' ? '<span>크기</span>' : ''}${gr.map((o) => control(o, value(o))).join('')}</div>`).join('')}
+      ${groups.map((gr) => `<div class="opts" data-group="${gr[0].group ?? ''}">${gr[0].group ? `<span>${GROUP_TITLE[gr[0].group]}</span>` : ''}${gr.map((o) => control(o, value(o))).join('')}</div>`).join('')}
       <div class="frame" style="width:${w}px;height:${h}px"><iframe loading="lazy"></iframe></div>
       <div class="url"><code></code><button>복사</button></div>`;
     list.append(sec);
@@ -244,12 +237,16 @@
         const items = board.slots[z].filter((it) => board.on[it]);
         if (items.length) q.set(z, items.join(','));
       }
+      const weatherOn = !board || board.on.weather;
+      const wRow = sec.querySelector('[data-group="weather"]');
+      if (wRow) wRow.style.opacity = weatherOn ? 1 : 0.4;
       for (const o of m.opts) {
         const v = readControl(sec.querySelector(`[data-k="${o.key}"]`));
         s[o.key] = v;
+        if (o.group === 'weather' && !weatherOn) continue;
         if (v !== '' && v !== o.def) q.set(o.key, v);
       }
-      globalQuery(q, { weather: m.weather || board?.on.weather });
+      globalQuery(q);
       persist();
       const url = new URL(m.path, base);
       url.search = q.toString().replaceAll('%2C', ',');
@@ -282,7 +279,7 @@
   }
 
   const updateGlobal = () => {
-    Object.assign(saved, { accent: g.accent.value, theme: g.theme.value, city: g.city.value.trim(), cityName: g.cityName.value.trim() });
+    Object.assign(saved, { accent: g.accent.value, theme: g.theme.value });
     document.documentElement.style.setProperty('--accent', g.accent.value);
     updaters.forEach((u) => u());
   };
