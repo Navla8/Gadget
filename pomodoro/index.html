@@ -37,7 +37,7 @@
 
   /* 원형 */
   .ring {
-    --size: min(calc(100vw - 12px), calc(100vh - 12px));
+    --size: min(calc(100vw - 4px), calc(100vh - 4px));
     position: relative; width: var(--size); height: var(--size);
     align-items: center; justify-content: center;
   }
@@ -50,7 +50,7 @@
   .ring .controls { font-size: 1.1em; }
 
   /* 막대 */
-  .bar { width: 100%; flex-direction: column; gap: min(4vh, 10px); padding: 0 3%; font-size: min(17vh, 7vw); }
+  .bar { width: 100%; flex-direction: column; gap: min(4vh, 10px); padding: 0 2px; font-size: min(17vh, 7vw); }
   .bar .row { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
   .bar .time { font-size: 2em; }
   .bar .meter { height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; }
@@ -61,7 +61,7 @@
 <body>
 <div id="app">
   <div class="view ring">
-    <svg class="track" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="48"/><circle class="fg" cx="50" cy="50" r="48" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
+    <svg class="track" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="48"/><circle class="fg" cx="50" cy="50" r="48" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"/></svg>
     <div class="inner">
       <div class="time" data-time></div>
       <div class="controls" data-controls></div>
@@ -221,10 +221,11 @@
 
     const total = state.status === 'idle' ? state.duration : state.total || state.duration;
     const progress = state.status === 'idle' ? 0 : 1 - left / total;
+    // 포인트 색이 가득 찬 상태에서 남은 만큼만 남김 (끝이 반시계 방향으로 줄어듦)
     const fg = document.querySelector('.fg');
-    fg.setAttribute('stroke-dashoffset', String(1 - progress));
-    fg.style.opacity = progress > 0 ? 1 : 0;
-    document.querySelector('.meter > div').style.width = `${progress * 100}%`;
+    fg.setAttribute('stroke-dashoffset', String(progress));
+    fg.style.opacity = progress < 1 ? 1 : 0;
+    document.querySelector('.meter > div').style.width = `${(1 - progress) * 100}%`;
 
     const main = state.status === 'running'
       ? `<button data-act="pause" title="일시정지">${ICON.pause}</button>`

@@ -9,47 +9,56 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
 <link rel="stylesheet" href="../shared/base.css">
 <style>
-  .weather {
-    display: flex;
-    align-items: center;
-    gap: 0.7em;
-    font-size: min(9vw, 19vh);
-    line-height: 1.15;
-  }
-  .icon { font-size: 2.4em; line-height: 1; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
-  .label { font-size: 0.62em; color: var(--muted); letter-spacing: 0.04em; }
-  .temps { font-size: 1.15em; }
-  .temps .sep { color: var(--muted); margin: 0 0.15em; }
-  .rain { font-size: 0.7em; margin-top: 0.15em; }
-  /* 세로로 긴 임베드에서는 위아래 배치 */
-  @media (max-aspect-ratio: 5/4) {
-    .weather { flex-direction: column; text-align: center; gap: 0.3em; font-size: min(11vw, 9vh); }
-  }
+  #app { display: inline-flex; align-items: center; line-height: 1.15; white-space: nowrap; }
+  .emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; line-height: 1; }
+  .today { display: flex; align-items: center; gap: 0.3em; }
+  .today .emoji { font-size: 1.9em; }
+  .label { font-size: 0.42em; color: var(--muted); letter-spacing: 0.03em; }
+  .pct { color: var(--accent); font-size: 0.85em; margin-left: 0.15em; }
+  .sep { color: var(--muted); margin: 0 0.12em; }
+  .tomorrow { margin-left: 0.5em; padding-left: 0.5em; border-left: 1px solid var(--line); }
+  .tomorrow .label { font-size: 0.32em; }
+  .tomorrow .row { font-size: 0.5em; margin-top: 0.15em; }
+  .tomorrow .emoji { font-size: 1.1em; margin-right: 0.15em; vertical-align: -0.1em; }
+  /* 세로로 긴 임베드 */
+  #app.column { flex-direction: column; text-align: center; }
+  #app.column .today { flex-direction: column; gap: 0.15em; }
+  #app.column .tomorrow { margin: 0.4em 0 0; padding: 0.35em 0 0; border-left: 0; border-top: 1px solid var(--line); }
 </style>
 </head>
 <body>
-<div class="weather" id="app">
-  <div class="icon" id="icon">·</div>
-  <div>
-    <div class="label" id="label"></div>
-    <div class="temps"><span id="max">–</span><span class="sep">/</span><span class="muted" id="min">–</span></div>
-    <div class="rain accent" id="rain"></div>
+<div id="app">
+  <div class="today">
+    <div class="emoji" id="icon">·</div>
+    <div>
+      <div class="label"><span id="label"></span><span class="pct" id="rain"></span></div>
+      <div class="temps"><span id="max">–</span><span class="sep">/</span><span class="muted" id="min">–</span></div>
+    </div>
+  </div>
+  <div class="tomorrow" id="tmr" hidden>
+    <div class="label">내일</div>
+    <div class="row"><span class="emoji" id="t-icon"></span><span id="t-max"></span><span class="sep">/</span><span class="muted" id="t-min"></span><span class="pct" id="t-rain"></span></div>
   </div>
 </div>
 <script type="module">
   import { param, numParam, onVisible } from '../shared/common.js';
+  import { fit, autoFit } from '../shared/fit.js';
 
   // 위치는 저장소에 두지 않고 임베드 주소로만 받음
   //   ?city=서울          도시 이름 (Open-Meteo 지오코딩으로 좌표 검색)
   //   ?lat=..&lon=..      좌표를 직접 지정 (city보다 우선)
   //   ?name=집            화면에 보일 이름 (기본: city 값)
+  //   ?tomorrow=0         내일 날씨 숨김
   const city = param('city', '').trim();
   const latP = numParam('lat', NaN);
   const lonP = numParam('lon', NaN);
   const hasCoords = Number.isFinite(latP) && Number.isFinite(lonP);
   const name = param('name', city);
+  const showTomorrow = param('tomorrow', '1') === '1';
   const REFRESH_MS = 30 * 60_000;
   const cacheKey = `weather:${hasCoords ? `${latP},${lonP}` : city}`;
+  const app = document.getElementById('app');
+  const $ = (id) => document.getElementById(id);
 
   // WMO 날씨 코드 → [이모지, 설명]
   function describe(code) {
@@ -77,7 +86,10 @@
     try { localStorage.setItem(key, JSON.stringify(v)); } catch {}
   }
 
-  const setLabel = (text) => { document.getElementById('label').textContent = text; };
+  function setLabel(text) {
+    $('label').textContent = text;
+    layout();
+  }
 
   // 도시 이름 → 좌표 (한 번 찾으면 이 브라우저에 저장)
   async function locate() {
@@ -97,12 +109,26 @@
   }
 
   function render(w) {
-    const [emoji, desc] = describe(w.code);
-    document.getElementById('icon').textContent = emoji;
+    const [d0, d1] = w.days;
+    const [emoji, desc] = describe(d0.code);
+    $('icon').textContent = emoji;
+    $('rain').textContent = d0.rain == null ? '' : `${d0.rain}%`;
+    $('max').textContent = `${Math.round(d0.max)}°`;
+    $('min').textContent = `${Math.round(d0.min)}°`;
+    if (showTomorrow && d1) {
+      $('t-icon').textContent = describe(d1.code)[0];
+      $('t-max').textContent = `${Math.round(d1.max)}°`;
+      $('t-min').textContent = `${Math.round(d1.min)}°`;
+      $('t-rain').textContent = d1.rain == null ? '' : `${d1.rain}%`;
+      $('tmr').hidden = false;
+    }
     setLabel([name, desc].filter(Boolean).join(' · '));
-    document.getElementById('max').textContent = `${Math.round(w.max)}°`;
-    document.getElementById('min').textContent = `${Math.round(w.min)}°`;
-    document.getElementById('rain').textContent = w.rain == null ? '' : `강수 ${w.rain}%`;
+  }
+
+  // 세로로 긴 임베드면 위아래로 쌓고, 전체를 임베드에 꽉 채움
+  function layout() {
+    app.classList.toggle('column', innerWidth / innerHeight < 1.3);
+    fit(app);
   }
 
   let fetchedAt = 0;
@@ -118,7 +144,7 @@
     if (!place) return setLabel(`'${city}'을(를) 찾지 못함`);
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.search = new URLSearchParams({
-      latitude: place.lat, longitude: place.lon, timezone: 'auto', forecast_days: 1,
+      latitude: place.lat, longitude: place.lon, timezone: 'auto', forecast_days: 2,
       daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
     });
     try {
@@ -128,10 +154,12 @@
       const w = {
         date: daily.time[0],
         tz: timezone,
-        code: daily.weather_code[0],
-        max: daily.temperature_2m_max[0],
-        min: daily.temperature_2m_min[0],
-        rain: daily.precipitation_probability_max[0],
+        days: daily.time.map((_, i) => ({
+          code: daily.weather_code[i],
+          max: daily.temperature_2m_max[i],
+          min: daily.temperature_2m_min[i],
+          rain: daily.precipitation_probability_max[i],
+        })),
       };
       fetchedAt = Date.now();
       writeCache(w);
@@ -141,13 +169,14 @@
     }
   }
 
+  autoFit(layout);
   const cached = hasCoords || city ? readCache() : null;
-  if (cached) render(cached);
+  if (cached?.days) render(cached);
   refresh();
   setInterval(refresh, REFRESH_MS);
   onVisible(() => {
     const c = readCache();
-    const stale = Date.now() - fetchedAt > REFRESH_MS || !c || c.date !== today(c.tz);
+    const stale = Date.now() - fetchedAt > REFRESH_MS || !c?.days || c.date !== today(c.tz);
     if (stale) refresh();
   });
 </script>

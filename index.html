@@ -10,10 +10,10 @@
 <style>
   :root {
     --bg: #ffffff; --text: rgb(55, 53, 47); --muted: rgba(55, 53, 47, 0.55);
-    --line: rgba(55, 53, 47, 0.14); --accent: #c8553d;
+    --line: rgba(55, 53, 47, 0.14); --soft: rgba(55, 53, 47, 0.04); --accent: #c8553d;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #191919; --text: rgba(255, 255, 255, 0.86); --muted: rgba(255, 255, 255, 0.48); --line: rgba(255, 255, 255, 0.14); }
+    :root { --bg: #191919; --text: rgba(255, 255, 255, 0.86); --muted: rgba(255, 255, 255, 0.48); --line: rgba(255, 255, 255, 0.14); --soft: rgba(255, 255, 255, 0.04); }
   }
   * { box-sizing: border-box; }
   body {
@@ -23,90 +23,245 @@
   main { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
   h1 { font-weight: 500; font-size: 2rem; margin: 0 0 4px; }
   h2 { font-weight: 500; font-size: 1.3rem; margin: 0; }
-  p.lead { color: var(--muted); margin: 0 0 40px; }
+  p.lead { color: var(--muted); margin: 0 0 28px; }
   section { border-top: 1px solid var(--line); padding: 28px 0; }
+  .global { display: flex; flex-wrap: wrap; gap: 10px 24px; padding: 16px 0 28px; }
   .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .opts { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 14px 0; font-size: 0.92rem; color: var(--muted); }
-  .opts label { display: flex; gap: 6px; align-items: center; }
+  .opts { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 14px 0; font-size: 0.92rem; color: var(--muted); }
+  label { display: flex; gap: 6px; align-items: center; }
   input, select {
     font: inherit; color: var(--text); background: transparent;
     border: 0; border-bottom: 1px solid var(--line); padding: 0 2px; width: 6em;
   }
   select { width: auto; }
-  iframe { width: 100%; border: 1px dashed var(--line); border-radius: 4px; display: block; background: transparent; }
+  input[type="checkbox"] { width: auto; accent-color: var(--accent); margin: 0; }
+  input[type="range"] { width: 7em; accent-color: var(--accent); border: 0; }
+  input[type="color"] { width: 2.4em; height: 1.4em; padding: 0; border: 0; cursor: pointer; }
+  input.size { width: 3.6em; }
+  .frame { border: 1px dashed var(--line); border-radius: 4px; overflow: hidden; resize: both; max-width: 100%; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; background: transparent; }
   .url { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
   .url code {
     flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 0.85rem;
     padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
   }
   button { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 0; }
+
+  /* 시계 배치판 */
+  .board {
+    display: grid; grid-template-columns: 1fr 1.6fr 1fr; grid-template-rows: 44px auto 44px;
+    gap: 6px; max-width: 420px; margin: 8px 0 16px; font-size: 0.9rem;
+  }
+  .zone {
+    border: 1px dashed var(--line); border-radius: 6px; display: grid; place-items: center;
+    color: var(--muted); font-size: 0.8rem; min-height: 44px; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  }
+  .zone:empty::after { content: attr(data-label); }
+  .zone.over, .stackbox.over { border-color: var(--accent); background: var(--soft); }
+  .z-top { grid-area: 1 / 2; } .z-left { grid-area: 2 / 1; } .z-right { grid-area: 2 / 3; } .z-bottom { grid-area: 3 / 2; }
+  .stackbox {
+    grid-area: 2 / 2; border: 1px solid var(--line); border-radius: 6px; padding: 8px;
+    display: flex; flex-direction: column; gap: 6px; min-height: 88px; justify-content: center;
+  }
+  .stackbox .note { font-size: 0.75rem; color: var(--muted); text-align: center; }
+  .chip {
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; text-align: center;
+    background: var(--bg); cursor: grab; user-select: none;
+  }
+  .chip.analog { color: var(--accent); border-color: var(--accent); }
+  .chip.off { opacity: 0.35; }
+  .chip:active { cursor: grabbing; }
+  .hint { font-size: 0.8rem; color: var(--muted); margin: -8px 0 12px; }
 </style>
 </head>
 <body>
 <main>
   <h1>Gadget</h1>
-  <p class="lead">노션 <code>/embed</code> 블록에 아래 주소를 붙여 넣으세요. 배경은 투명하고 글자색은 시스템 테마를 따릅니다.</p>
+  <p class="lead">노션 <code>/embed</code> 블록에 아래 주소를 붙여 넣으세요. 배경은 투명하고, 내용은 임베드 크기에 맞춰 꽉 차게 그려집니다.</p>
+  <div class="global opts">
+    <label>포인트 색 <input type="color" id="accent"></label>
+    <label>테마 <select id="theme"><option value="auto">시스템</option><option value="light">라이트</option><option value="dark">다크</option></select></label>
+    <button id="resetAll" style="font-size:0.85rem">설정 초기화</button>
+  </div>
   <div id="list"></div>
 </main>
 <script type="module">
-  const common = [
-    { key: 'theme', label: '테마', type: 'select', options: ['auto', 'light', 'dark'], def: 'auto' },
-    { key: 'accent', label: '포인트 색', type: 'color', def: '#c8553d' },
-  ];
+  // ── 저장된 설정 ─────────────────────────────────────
+  const STORE = 'gadget:settings';
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORE)) ?? {}; } catch {}
+  const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch {} };
+
+  const DEFAULT_ACCENT = '#c8553d';
+  const accentEl = document.getElementById('accent');
+  const themeEl = document.getElementById('theme');
+  accentEl.value = saved.accent ?? DEFAULT_ACCENT;
+  themeEl.value = saved.theme ?? 'auto';
+  document.getElementById('resetAll').onclick = () => { saved = {}; persist(); location.reload(); };
+
+  // 공통 옵션은 맨 위에서 한 번만 정하고 모든 주소에 붙임
+  function globalQuery(q) {
+    const a = accentEl.value.replace('#', '');
+    if (a !== DEFAULT_ACCENT.slice(1)) q.set('accent', a);
+    if (themeEl.value !== 'auto') q.set('theme', themeEl.value);
+  }
+
+  // ── 모듈 정의 ───────────────────────────────────────
+  // type: check(0/1) | select | text | number | range
   const modules = [
-    { path: 'clock/', title: '시계', height: 160, opts: [
-      { key: 'style', label: '형태', type: 'select', options: ['digital', 'analog'], def: 'digital' },
-      { key: 'seconds', label: '초 표시', type: 'select', options: ['', '1', '0'], def: '' },
-      { key: 'hour12', label: '12시간제', type: 'select', options: ['0', '1'], def: '0' },
+    { key: 'clock', path: 'clock/', title: '시계 · 날짜', size: [480, 160], board: true, opts: [
+      { key: 'gap', label: '간격', type: 'range', min: 0, max: 1.5, step: 0.05, def: '0.3' },
+      { key: 'hand', label: '초침', type: 'check', def: '1' },
+      { key: 'seconds', label: '디지털 초', type: 'check', def: '0' },
+      { key: 'hour12', label: '12시간제', type: 'check', def: '0' },
+      { key: 'blink', label: '콜론 깜박임', type: 'check', def: '1' },
+      { key: 'lang', label: '언어', type: 'select', options: [['ko', '한국어'], ['en', 'English']], def: 'ko' },
     ] },
-    { path: 'date/', title: '오늘 날짜', height: 140, opts: [
-      { key: 'lang', label: '언어', type: 'select', options: ['ko', 'en'], def: 'ko' },
-    ] },
-    { path: 'weather/', title: '오늘 날씨', height: 120, opts: [
+    { key: 'weather', path: 'weather/', title: '날씨', size: [420, 110], opts: [
       { key: 'city', label: '도시', type: 'text', def: '', placeholder: '예: 서울' },
       { key: 'name', label: '표시 이름', type: 'text', def: '', placeholder: '(선택)' },
+      { key: 'tomorrow', label: '내일 날씨', type: 'check', def: '1' },
     ] },
-    { path: 'pomodoro/', title: '포모도로', height: 280, opts: [
-      { key: 'min', label: '기본 분', type: 'text', def: '90' },
-      { key: 'layout', label: '형태', type: 'select', options: ['auto', 'ring', 'bar'], def: 'auto' },
-      { key: 'vol', label: '음량', type: 'text', def: '0.6' },
+    { key: 'pomodoro', path: 'pomodoro/', title: '포모도로', size: [300, 280], opts: [
+      { key: 'min', label: '기본 분', type: 'number', def: '90' },
+      { key: 'layout', label: '형태', type: 'select', options: [['auto', '자동'], ['ring', '원형'], ['bar', '막대']], def: 'auto' },
+      { key: 'vol', label: '음량', type: 'range', min: 0, max: 1, step: 0.05, def: '0.6' },
       { key: 'id', label: 'id', type: 'text', def: 'default' },
     ] },
   ];
 
+  function control(o, value) {
+    if (o.type === 'check') return `<label><input type="checkbox" data-k="${o.key}" ${value === '1' ? 'checked' : ''}> ${o.label}</label>`;
+    if (o.type === 'select') return `<label>${o.label} <select data-k="${o.key}">${o.options.map(([v, t]) => `<option value="${v}" ${v === value ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+    if (o.type === 'range') return `<label>${o.label} <input type="range" data-k="${o.key}" min="${o.min}" max="${o.max}" step="${o.step}" value="${value}"></label>`;
+    return `<label>${o.label} <input type="${o.type}" data-k="${o.key}" value="${value}" placeholder="${o.placeholder ?? ''}"></label>`;
+  }
+  const readControl = (input) => (input.type === 'checkbox' ? (input.checked ? '1' : '0') : input.value.trim());
+
+  // ── 시계 배치판 (드래그 앤 드롭) ─────────────────────
+  // 상태: analog/digital/date 표시 여부, 아날로그 위치(pos), 날짜 먼저(datefirst)
+  const BOARD_DEF = { analog: '1', digital: '1', date: '1', pos: 'left', datefirst: '0' };
+  const CLOCK_DEF = { analog: '0', digital: '1', date: '0', pos: 'left', datefirst: '0' };
+  const ZONES = [['top', '위'], ['left', '왼쪽'], ['right', '오른쪽'], ['bottom', '아래']];
+
+  function boardHtml() {
+    return `
+      <div class="opts">
+        <label><input type="checkbox" data-b="analog"> 아날로그</label>
+        <label><input type="checkbox" data-b="digital"> 디지털</label>
+        <label><input type="checkbox" data-b="date"> 날짜</label>
+      </div>
+      <div class="board">
+        ${ZONES.map(([z, t]) => `<div class="zone z-${z}" data-zone="${z}" data-label="${t}"></div>`).join('')}
+        <div class="stackbox" data-zone="inside"></div>
+      </div>
+      <p class="hint">아날로그를 칸으로 끌어다 놓아 위치를 정하세요(가운데 = 안쪽). 디지털·날짜는 서로 끌어 순서를 바꿉니다. 클릭해도 됩니다.</p>`;
+  }
+
+  function setupBoard(sec, b, onChange) {
+    const chip = (kind, text) => `<div class="chip ${kind}${b[kind] === '1' ? '' : ' off'}" draggable="true" data-chip="${kind}">${text}</div>`;
+    const draw = () => {
+      sec.querySelectorAll('[data-b]').forEach((c) => { c.checked = b[c.dataset.b] === '1'; });
+      sec.querySelectorAll('.zone').forEach((z) => { z.innerHTML = b.pos === z.dataset.zone ? chip('analog', '아날로그') : ''; });
+      const text = b.datefirst === '1' ? [chip('date', '날짜'), chip('digital', '디지털')] : [chip('digital', '디지털'), chip('date', '날짜')];
+      sec.querySelector('.stackbox').innerHTML =
+        (b.pos === 'inside' ? `${chip('analog', '아날로그')}<div class="note">↑ 안쪽에 글자</div>` : '') + text.join('');
+    };
+    const moveAnalog = (zone) => { b.pos = zone; draw(); onChange(); };
+    const swapText = () => { b.datefirst = b.datefirst === '1' ? '0' : '1'; draw(); onChange(); };
+
+    sec.querySelectorAll('[data-b]').forEach((c) => c.addEventListener('change', () => {
+      b[c.dataset.b] = c.checked ? '1' : '0'; draw(); onChange();
+    }));
+
+    let dragging = null;
+    sec.addEventListener('dragstart', (e) => {
+      dragging = e.target.dataset?.chip ?? null;
+      e.dataTransfer?.setData('text/plain', dragging ?? '');
+    });
+    sec.addEventListener('dragend', () => { dragging = null; sec.querySelectorAll('.over').forEach((n) => n.classList.remove('over')); });
+    sec.querySelectorAll('[data-zone]').forEach((z) => {
+      z.addEventListener('dragover', (e) => {
+        if (dragging === 'analog' || (dragging && z.dataset.zone === 'inside')) { e.preventDefault(); z.classList.add('over'); }
+      });
+      z.addEventListener('dragleave', () => z.classList.remove('over'));
+      z.addEventListener('drop', (e) => {
+        e.preventDefault();
+        z.classList.remove('over');
+        if (dragging === 'analog') moveAnalog(z.dataset.zone);
+        else if (dragging) {
+          const target = e.target.closest('[data-chip]')?.dataset.chip;
+          if (target && target !== dragging && target !== 'analog') swapText();
+        }
+      });
+      // 클릭: 빈 칸 → 아날로그 이동, 글자 칩 → 순서 바꾸기
+      z.addEventListener('click', (e) => {
+        const c = e.target.closest('[data-chip]')?.dataset.chip;
+        if (c === 'digital' || c === 'date') swapText();
+        else if (!c) moveAnalog(z.dataset.zone);
+      });
+    });
+    draw();
+  }
+
+  // ── 화면 만들기 ─────────────────────────────────────
   const base = new URL('.', location.href);
   const list = document.getElementById('list');
+  const updaters = [];
 
   for (const m of modules) {
-    const opts = [...m.opts, ...common];
+    const s = (saved[m.key] ??= {});
+    const value = (o) => s[o.key] ?? o.def;
+    const [w, h] = s.size ?? m.size;
     const sec = document.createElement('section');
     sec.innerHTML = `
       <div class="head"><h2>${m.title}</h2>
-        <label class="opts">미리보기 높이 <input type="number" value="${m.height}" data-h style="width:4em">px</label></div>
-      <div class="opts">${opts.map((o) => `<label>${o.label} ${
-        o.type === 'select'
-          ? `<select data-k="${o.key}">${o.options.map((v) => `<option value="${v}" ${v === o.def ? 'selected' : ''}>${v || '기본'}</option>`).join('')}</select>`
-          : `<input type="${o.type}" data-k="${o.key}" value="${o.def}" placeholder="${o.placeholder ?? ''}">`}</label>`).join('')}</div>
-      <iframe height="${m.height}" loading="lazy"></iframe>
+        <span class="opts" style="margin:0">미리보기
+          <input class="size" type="number" data-w value="${w}">×<input class="size" type="number" data-h value="${h}">px</span></div>
+      ${m.board ? boardHtml() : ''}
+      <div class="opts">${m.opts.map((o) => control(o, value(o))).join('')}</div>
+      <div class="frame" style="width:${w}px;height:${h}px"><iframe loading="lazy"></iframe></div>
       <div class="url"><code></code><button>복사</button></div>`;
     list.append(sec);
 
-    const frame = sec.querySelector('iframe');
+    const frame = sec.querySelector('.frame');
+    const iframe = sec.querySelector('iframe');
     const code = sec.querySelector('code');
+    const board = m.board ? (s.board ??= { ...BOARD_DEF }) : null;
+
     const update = () => {
       const q = new URLSearchParams();
-      for (const o of opts) {
-        let v = sec.querySelector(`[data-k="${o.key}"]`).value.trim();
-        if (o.key === 'accent') v = v.replace('#', '');
-        if (v !== '' && v !== String(o.def).replace('#', '')) q.set(o.key, v);
+      // 시계 모듈 자체의 기본값(디지털만)과 다른 것만 주소에 넣음
+      if (board) for (const [k, d] of Object.entries(CLOCK_DEF)) if (board[k] !== d) q.set(k, board[k]);
+      for (const o of m.opts) {
+        const v = readControl(sec.querySelector(`[data-k="${o.key}"]`));
+        s[o.key] = v;
+        if (v !== '' && v !== o.def) q.set(o.key, v);
       }
+      globalQuery(q);
+      persist();
       const url = new URL(m.path, base);
       url.search = q;
       code.textContent = url.href;
-      if (frame.src !== url.href) frame.src = url.href;
+      if (iframe.src !== url.href) iframe.src = url.href;
     };
-    sec.addEventListener('change', update);
-    sec.querySelector('[data-h]').addEventListener('input', (e) => { frame.height = e.target.value; });
+    updaters.push(update);
+    if (board) setupBoard(sec, board, update);
+    sec.querySelectorAll('[data-k]').forEach((i) => i.addEventListener(i.type === 'range' ? 'input' : 'change', update));
+
+    // 미리보기 크기: 숫자 입력 또는 오른쪽 아래 모서리 끌기
+    const sizeInputs = [sec.querySelector('[data-w]'), sec.querySelector('[data-h]')];
+    sizeInputs.forEach((i) => i.addEventListener('input', () => {
+      frame.style.width = `${sizeInputs[0].value}px`;
+      frame.style.height = `${sizeInputs[1].value}px`;
+      s.size = sizeInputs.map((x) => Number(x.value)); persist();
+    }));
+    new ResizeObserver(() => {
+      sizeInputs[0].value = Math.round(frame.offsetWidth);
+      sizeInputs[1].value = Math.round(frame.offsetHeight);
+      s.size = sizeInputs.map((x) => Number(x.value)); persist();
+    }).observe(frame);
+
     sec.querySelector('button').addEventListener('click', async (e) => {
       try { await navigator.clipboard.writeText(code.textContent); e.target.textContent = '복사됨'; }
       catch { e.target.textContent = '직접 복사해 주세요'; }
@@ -114,6 +269,15 @@
     });
     update();
   }
+
+  const updateGlobal = () => {
+    saved.accent = accentEl.value; saved.theme = themeEl.value;
+    document.documentElement.style.setProperty('--accent', accentEl.value);
+    updaters.forEach((u) => u());
+  };
+  accentEl.addEventListener('change', updateGlobal);
+  themeEl.addEventListener('change', updateGlobal);
+  document.documentElement.style.setProperty('--accent', accentEl.value);
 </script>
 </body>
 </html>

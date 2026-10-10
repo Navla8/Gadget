@@ -7,13 +7,13 @@
 
 | 모듈 | 경로 | 옵션 |
 |---|---|---|
-| 현재 시각 | `clock/` | `style=digital\|analog`, `seconds=0\|1`, `hour12=0\|1`, `tz=Asia/Seoul` |
-| 오늘 날짜 | `date/` | `lang=ko\|en`, `tz` |
-| 오늘 날씨 | `weather/` | `city=서울` (필수), `name=표시 이름`, 또는 `lat`+`lon`으로 좌표 직접 지정 |
+| 시계 · 날짜 | `clock/` | 표시: `analog`, `digital`, `date` (0/1) · 배치: `pos=left\|right\|top\|bottom\|inside`, `datefirst=1`, `gap=0.3` · `hand=0`(초침 숨김), `seconds=1`, `hour12=1`, `blink=0`, `lang=en`, `tz` |
+| 날씨 | `weather/` | `city=서울` (필수), `name=표시 이름`, `tomorrow=0`, 또는 `lat`+`lon` |
 | 포모도로 | `pomodoro/` | `min=90`, `layout=auto\|ring\|bar`, `vol=0.6`, `id=default` |
 
 공통 옵션: `theme=auto|light|dark`, `accent=c8553d` (# 없는 hex).
-루트의 `index.html`에서 옵션을 고르며 미리 보고 주소를 복사할 수 있습니다.
+루트의 `index.html`(설정 화면)에서 포인트 색을 한 번 정하면 모든 주소에 적용되고, 시계 배치는 드래그 앤 드롭으로 정할 수 있습니다. 설정은 브라우저에 저장됩니다.
+모든 위젯은 내용물을 임베드 크기에 꽉 맞춰 그리므로, 노션에서 블록 크기만 조절하면 됩니다. 이전 `date/` 주소는 날짜만 보이는 시계로 연결됩니다.
 
 ## 배포 (GitHub Pages)
 
