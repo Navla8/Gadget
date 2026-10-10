@@ -110,6 +110,7 @@
   // type: check(0/1) | select | text | number | range
   const modules = [
     { key: 'clock', path: 'clock/', title: '시계 · 날짜', size: [480, 160], board: true, opts: [
+      { key: 'asize', label: '아날로그 크기', type: 'range', min: 0.5, max: 2, step: 0.05, def: '1' },
       { key: 'gap', label: '간격', type: 'range', min: 0, max: 1, step: 0.05, def: '0.15' },
       { key: 'hand', label: '초침', type: 'check', def: '1' },
       { key: 'seconds', label: '디지털 초', type: 'check', def: '0' },

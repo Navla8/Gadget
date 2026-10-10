@@ -48,7 +48,8 @@
   //   analog / digital / date = 0|1   표시할 요소
   //   pos = left|right|top|bottom|inside   글자(디지털·날짜) 기준 아날로그 위치
   //   datefirst=1   날짜를 디지털 위에
-  //   gap=0.3       아날로그와 글자 사이 간격 (em)
+  //   gap=0.15      아날로그와 글자 사이 간격 (em)
+  //   asize=1       아날로그 크기 배율 (글자 대비)
   //   hand=0        아날로그 초침 숨김 / seconds=1 디지털 초 표시
   //   hour12=1, blink=0, lang=en, tz=Asia/Seoul
   const on = (k, d) => param(k, d) === '1';
@@ -61,6 +62,7 @@
   const pos = param('pos', 'left');
   const dateFirst = on('datefirst', '0');
   const gap = numParam('gap', 0.15);
+  const asize = Math.min(3, Math.max(0.3, numParam('asize', 1)));
   const showHand = on('hand', '1');
   const showSeconds = on('seconds', '0');
   const hour12 = on('hour12', '0');
@@ -168,11 +170,11 @@
       if (hasText) {
         if (pos === 'inside') {
           d = 4;
-          stack.style.fontSize = `${Math.min((d * 0.46) / sw, (d * 0.2) / sh)}em`;
+          stack.style.fontSize = `${Math.min((d * 0.46) / sw, (d * 0.2) / sh) / asize}em`;
         } else if (pos === 'top' || pos === 'bottom') {
-          d = Math.max(sw * 0.8, sh * 2);
+          d = Math.max(sw * 0.8, sh * 2) * asize;
         } else {
-          d = Math.max(sh * 1.1, 1);
+          d = Math.max(sh, 1) * 1.4 * asize;
         }
       }
       analog.style.width = analog.style.height = `${d}em`;

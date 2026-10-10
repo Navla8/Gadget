@@ -7,7 +7,7 @@
 
 | 모듈 | 경로 | 옵션 |
 |---|---|---|
-| 시계 · 날짜 | `clock/` | 표시: `analog`, `digital`, `date` (0/1) · 배치: `pos=left\|right\|top\|bottom\|inside`, `datefirst=1`, `gap=0.15` · `hand=0`(초침 숨김), `seconds=1`, `hour12=1`, `blink=0`, `lang=en`, `tz` |
+| 시계 · 날짜 | `clock/` | 표시: `analog`, `digital`, `date` (0/1) · 배치: `pos=left\|right\|top\|bottom\|inside`, `datefirst=1`, `gap=0.15`, `asize=1`(아날로그 크기 배율) · `hand=0`(초침 숨김), `seconds=1`, `hour12=1`, `blink=0`, `lang=en`, `tz` |
 | 날씨 | `weather/` | `city=서울` (필수), `name=표시 이름`, `tomorrow=0`, 또는 `lat`+`lon` |
 | 포모도로 | `pomodoro/` | `min=90`, `layout=auto\|ring\|bar`, `vol=0.6`, `id=default` |
 
