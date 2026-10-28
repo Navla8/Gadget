@@ -1,4 +1,4 @@
-/* 공통 토큰 — 노션의 기본 글자색에 맞추고 배경은 항상 투명 */
+/* 공통 토큰 — 노션의 기본 글자색에 맞추고 배경은 항상 투명 (디자인 시스템 프로필: 타임즈 + 옥스블러드) */
 /* color-scheme이 바깥 페이지(노션)와 다르면 브라우저가 iframe에 불투명 배경을 칠하므로,
    라이트·다크를 모두 지원한다고 선언해 노션 쪽 설정과 항상 맞춤 */
 :root { color-scheme: light dark; }
@@ -6,22 +6,28 @@
 :root[data-theme="dark"] { color-scheme: dark; }
 :root {
   --text: rgb(55, 53, 47);
-  --muted: rgba(55, 53, 47, 0.55);
+  --muted: rgba(55, 53, 47, 0.68);
   --line: rgba(55, 53, 47, 0.14);
-  --accent: #c8553d;
-  --serif: "EB Garamond", "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", Georgia, serif;
+  --accent: #9b3434;
+  --accent-text: #9b3434;
+  --font-display: "Times New Roman", Tinos, Times, RIDIBatang, "Noto Serif KR", serif;
+  --font-text: RIDIBatang, "Times New Roman", Tinos, "Noto Serif KR", AppleMyungjo, serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --text: rgba(255, 255, 255, 0.86);
     --muted: rgba(255, 255, 255, 0.48);
     --line: rgba(255, 255, 255, 0.14);
+    --accent: #ba3e3e;
+    --accent-text: #cb6565;
   }
 }
 :root[data-theme="dark"] {
   --text: rgba(255, 255, 255, 0.86);
   --muted: rgba(255, 255, 255, 0.48);
   --line: rgba(255, 255, 255, 0.14);
+  --accent: #ba3e3e;
+  --accent-text: #cb6565;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -31,7 +37,7 @@ html, body {
   height: 100%;
   background: transparent;
   color: var(--text);
-  font-family: var(--serif);
+  font-family: var(--font-text);
   font-variant-numeric: lining-nums tabular-nums;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
@@ -54,4 +60,4 @@ button {
 }
 
 .muted { color: var(--muted); }
-.accent { color: var(--accent); }
+.accent { color: var(--accent-text); }

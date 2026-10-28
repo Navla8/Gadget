@@ -1,6 +1,6 @@
 // 모든 모듈이 공유하는 URL 옵션 처리
 //   ?theme=auto|light|dark   글자색 테마 (기본 auto = OS/브라우저 설정)
-//   ?accent=c8553d           포인트 색 (# 없이 hex)
+//   ?accent=9b3434           포인트 색 (# 없이 hex, 작은 포인트 글자에도 같은 색을 씀)
 //   ?scheme=light|dark       배경이 불투명하게 보일 때만 사용 (README 참고)
 export const params = new URLSearchParams(location.search);
 
@@ -20,7 +20,10 @@ const theme = param('theme', 'auto');
 if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
 
 const accent = param('accent', '');
-if (/^[0-9a-f]{3,8}$/i.test(accent)) root.style.setProperty('--accent', `#${accent}`);
+if (/^[0-9a-f]{3,8}$/i.test(accent)) {
+  root.style.setProperty('--accent', `#${accent}`);
+  root.style.setProperty('--accent-text', `#${accent}`);
+}
 
 const scheme = param('scheme', '');
 if (scheme === 'light' || scheme === 'dark') root.style.colorScheme = scheme;

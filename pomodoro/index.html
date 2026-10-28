@@ -6,7 +6,7 @@
 <title>Pomodoro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500&family=Tinos:wght@400;700&display=swap">
 <link rel="stylesheet" href="../shared/base.css">
 <style>
   #app[data-layout="bar"] { width: 100%; }
@@ -14,7 +14,7 @@
   [data-layout="ring"] .view.ring,
   [data-layout="bar"] .view.bar { display: flex; }
 
-  .time { cursor: default; line-height: 1; white-space: nowrap; }
+  .time { font-family: var(--font-display); cursor: default; line-height: 1; white-space: nowrap; }
   [data-status="idle"] .time { cursor: text; }
   [data-status="done"] .time { color: var(--accent); }
   .time input {
@@ -28,11 +28,11 @@
 
   .controls { display: flex; gap: 0.9em; align-items: center; }
   .controls button { display: grid; place-items: center; color: var(--muted); transition: color 0.15s; }
-  .controls button:hover { color: var(--accent); }
+  .controls button:hover { color: var(--accent-text); }
   .controls svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   .controls .fill { fill: currentColor; stroke: none; }
 
-  .hint { color: var(--accent); font-size: 0.7em; cursor: pointer; display: none; }
+  .hint { color: var(--accent-text); font-size: 0.7em; cursor: pointer; display: none; }
   [data-needs-audio] .hint { display: block; }
 
   /* 원형 */

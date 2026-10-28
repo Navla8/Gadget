@@ -4,7 +4,7 @@
 .wx .today { display: flex; align-items: center; gap: 0.3em; }
 .wx .today .emoji { font-size: 1.9em; transform: translateY(0.1em); }  /* 이모지 중심을 온도 줄에 맞춤 */
 .wx .label { font-size: 0.42em; color: var(--muted); letter-spacing: 0.03em; }
-.wx .pct { color: var(--accent); font-size: 0.85em; margin-left: 0.15em; }
+.wx .pct { color: var(--accent-text); font-size: 0.85em; margin-left: 0.15em; }
 .wx .sep { color: var(--muted); margin: 0 0.12em; }
 .wx .tomorrow { margin-left: 0.5em; padding-left: 0.5em; border-left: 1px solid var(--line); }
 .wx .tomorrow .label { font-size: 0.32em; }

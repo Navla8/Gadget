@@ -6,7 +6,7 @@
 <title>Clock</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500&family=Tinos:wght@400;700&display=swap">
 <link rel="stylesheet" href="../shared/base.css">
 <link rel="stylesheet" href="../shared/weather.css">
 <style>
@@ -17,7 +17,7 @@
   /* 디지털과 날짜가 붙어 있으면 더 가깝게 */
   .item.digital + .item.date, .item.date + .item.digital { margin-top: -0.06em; }
 
-  .digital-face { display: flex; align-items: baseline; letter-spacing: 0.01em; line-height: 0.8; }
+  .digital-face { font-family: var(--font-display); display: flex; align-items: baseline; letter-spacing: 0.01em; line-height: 0.8; }
   .colon { color: var(--accent); margin: 0 0.04em; transform: translateY(-0.06em); }
   /* 1초 켜짐 · 1초 흐림 */
   .blink .colon { animation: blink 2s steps(1) infinite; }

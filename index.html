@@ -6,22 +6,23 @@
 <title>Gadget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Noto+Serif+KR:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=Nanum+Gothic+Coding&family=Noto+Serif+KR:wght@400;500&family=Tinos:wght@400;700&display=swap">
 <style>
   :root {
-    --bg: #ffffff; --text: rgb(55, 53, 47); --muted: rgba(55, 53, 47, 0.55);
-    --line: rgba(55, 53, 47, 0.14); --soft: rgba(55, 53, 47, 0.04); --accent: #c8553d;
+    --bg: #ffffff; --text: rgb(55, 53, 47); --muted: rgba(55, 53, 47, 0.68);
+    --line: rgba(55, 53, 47, 0.14); --soft: rgba(55, 53, 47, 0.04); --accent: #9b3434; --accent-text: #9b3434;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #191919; --text: rgba(255, 255, 255, 0.86); --muted: rgba(255, 255, 255, 0.48); --line: rgba(255, 255, 255, 0.14); --soft: rgba(255, 255, 255, 0.04); }
+    :root { --bg: #191919; --text: rgba(255, 255, 255, 0.86); --muted: rgba(255, 255, 255, 0.48); --line: rgba(255, 255, 255, 0.14); --soft: rgba(255, 255, 255, 0.04); --accent: #ba3e3e; --accent-text: #cb6565; }
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
-    font-family: "EB Garamond", "Noto Serif KR", Georgia, serif; font-size: 17px; line-height: 1.6;
+    font-family: RIDIBatang, "Times New Roman", Tinos, "Noto Serif KR", AppleMyungjo, serif; font-size: 17px; line-height: 1.6;
   }
   main { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
-  h1 { font-weight: 500; font-size: 2rem; margin: 0 0 4px; }
+  h1 { font-family: "Times New Roman", Tinos, Times, RIDIBatang, "Noto Serif KR", serif; font-weight: 400; font-size: 2rem; margin: 0 0 4px; }
+  code { font-family: "Courier Prime", D2Coding, "Nanum Gothic Coding", monospace; }
   h2 { font-weight: 500; font-size: 1.3rem; margin: 0; }
   p.lead { color: var(--muted); margin: 0 0 28px; }
   section { border-top: 1px solid var(--line); padding: 28px 0; }
@@ -45,7 +46,7 @@
     flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 0.85rem;
     padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
   }
-  button { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 0; }
+  button { font: inherit; color: var(--accent-text); background: none; border: 0; cursor: pointer; padding: 0; }
 
   /* 시계 배치판 */
   .board {
@@ -67,7 +68,7 @@
     background: var(--bg); cursor: grab; user-select: none; touch-action: none;
   }
   .chip.off { opacity: 0.35; text-decoration: line-through; }
-  .chip.picked { border-color: var(--accent); color: var(--accent); }
+  .chip.picked { border-color: var(--accent); color: var(--accent-text); }
   .chip:active { cursor: grabbing; }
   .hint { font-size: 0.8rem; color: var(--muted); margin: -8px 0 12px; }
 </style>
@@ -91,7 +92,7 @@
   const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch {} };
 
   // ── 공통 설정: 맨 위에서 한 번만 정하고 모든 주소에 붙임 ──
-  const DEFAULT_ACCENT = '#c8553d';
+  const DEFAULT_ACCENT = '#9b3434';
   const g = Object.fromEntries(['accent', 'theme'].map((id) => [id, document.getElementById(id)]));
   g.accent.value = saved.accent ?? DEFAULT_ACCENT;
   g.theme.value = saved.theme ?? 'auto';
@@ -283,11 +284,18 @@
 
   const updateGlobal = () => {
     Object.assign(saved, { accent: g.accent.value, theme: g.theme.value });
-    document.documentElement.style.setProperty('--accent', g.accent.value);
+    applyAccent();
     updaters.forEach((u) => u());
   };
+  // 기본 색이면 CSS의 라이트·다크 값을 쓰고, 사용자가 바꾼 색만 덮어씀
+  function applyAccent() {
+    const s = document.documentElement.style;
+    for (const k of ['--accent', '--accent-text']) {
+      if (g.accent.value === DEFAULT_ACCENT) s.removeProperty(k); else s.setProperty(k, g.accent.value);
+    }
+  }
   Object.values(g).forEach((i) => i.addEventListener('change', updateGlobal));
-  document.documentElement.style.setProperty('--accent', g.accent.value);
+  applyAccent();
 </script>
 </body>
 </html>
