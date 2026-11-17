@@ -114,19 +114,29 @@ export function createWeather(onChange = () => {}) {
     url.search = new URLSearchParams({
       latitude: place.lat, longitude: place.lon, timezone: 'auto', forecast_days: 2,
       daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+      // 기상청 모델 우선. 기상청이 주지 않는 값(강수확률 등)이나 한반도 밖은 자동 선택 모델로 채움
+      models: 'kma_seamless,best_match',
     });
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(res.status);
       const { daily, timezone } = await res.json();
+      // 모델을 여러 개 요청하면 값이 '변수_모델' 이름으로 옴
+      const pick = (v, i) => {
+        for (const m of ['kma_seamless', 'best_match']) {
+          const x = daily[`${v}_${m}`]?.[i];
+          if (x != null) return x;
+        }
+        return daily[v]?.[i] ?? null;
+      };
       const w = {
         date: daily.time[0],
         tz: timezone,
         days: daily.time.map((_, i) => ({
-          code: daily.weather_code[i],
-          max: daily.temperature_2m_max[i],
-          min: daily.temperature_2m_min[i],
-          rain: daily.precipitation_probability_max[i],
+          code: pick('weather_code', i),
+          max: pick('temperature_2m_max', i),
+          min: pick('temperature_2m_min', i),
+          rain: pick('precipitation_probability_max', i),
         })),
       };
       fetchedAt = Date.now();
